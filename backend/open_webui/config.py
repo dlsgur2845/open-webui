@@ -1553,6 +1553,18 @@ ENABLE_NOTES = PersistentConfig(
     os.environ.get("ENABLE_NOTES", "True").lower() == "true",
 )
 
+ENABLE_IMAGE_CAPTURE = PersistentConfig(
+    "ENABLE_IMAGE_CAPTURE",
+    "ui.enable_image_capture",
+    os.environ.get("ENABLE_IMAGE_CAPTURE", "True").lower() == "true",
+)
+
+ENABLE_WEBPAGE_ATTACHMENT = PersistentConfig(
+    "ENABLE_WEBPAGE_ATTACHMENT",
+    "ui.enable_webpage_attachment",
+    os.environ.get("ENABLE_WEBPAGE_ATTACHMENT", "True").lower() == "true",
+)
+
 ENABLE_EVALUATION_ARENA_MODELS = PersistentConfig(
     "ENABLE_EVALUATION_ARENA_MODELS",
     "evaluation.arena.enable",

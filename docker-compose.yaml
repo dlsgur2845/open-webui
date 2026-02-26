@@ -16,6 +16,8 @@ services:
       - 'CHAT_DELETE_DAYS=1'
       - 'ENABLE_PASSWORD_VALIDATION=true'
       - 'PASSWORD_BLACKLIST=kftc,admin'
+      - 'ENABLE_IMAGE_CAPTURE=true'
+      - 'ENABLE_WEBPAGE_ATTACHMENT=true'
     extra_hosts:
       - host.docker.internal:host-gateway
     restart: unless-stopped
