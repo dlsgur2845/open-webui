@@ -1565,6 +1565,12 @@ ENABLE_WEBPAGE_ATTACHMENT = PersistentConfig(
     os.environ.get("ENABLE_WEBPAGE_ATTACHMENT", "True").lower() == "true",
 )
 
+ENABLE_USER_PERSONAL_INFO = PersistentConfig(
+    "ENABLE_USER_PERSONAL_INFO",
+    "ui.enable_user_personal_info",
+    os.environ.get("ENABLE_USER_PERSONAL_INFO", "True").lower() == "true",
+)
+
 ENABLE_EVALUATION_ARENA_MODELS = PersistentConfig(
     "ENABLE_EVALUATION_ARENA_MODELS",
     "evaluation.arena.enable",

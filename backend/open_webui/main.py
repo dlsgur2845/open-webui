@@ -363,6 +363,7 @@ from open_webui.config import (
     ENABLE_NOTES,
     ENABLE_IMAGE_CAPTURE,
     ENABLE_WEBPAGE_ATTACHMENT,
+    ENABLE_USER_PERSONAL_INFO,
     ENABLE_COMMUNITY_SHARING,
     ENABLE_MESSAGE_RATING,
     ENABLE_USER_WEBHOOKS,
@@ -803,6 +804,7 @@ app.state.config.ENABLE_CHANNELS = ENABLE_CHANNELS
 app.state.config.ENABLE_NOTES = ENABLE_NOTES
 app.state.config.ENABLE_IMAGE_CAPTURE = ENABLE_IMAGE_CAPTURE
 app.state.config.ENABLE_WEBPAGE_ATTACHMENT = ENABLE_WEBPAGE_ATTACHMENT
+app.state.config.ENABLE_USER_PERSONAL_INFO = ENABLE_USER_PERSONAL_INFO
 app.state.config.ENABLE_COMMUNITY_SHARING = ENABLE_COMMUNITY_SHARING
 
 app.state.config.CHAT_DELETE_ENABLED = CHAT_DELETE_ENABLED
@@ -1938,6 +1940,7 @@ async def get_app_config(request: Request):
                     "enable_notes": app.state.config.ENABLE_NOTES,
                     "enable_image_capture": app.state.config.ENABLE_IMAGE_CAPTURE,
                     "enable_webpage_attachment": app.state.config.ENABLE_WEBPAGE_ATTACHMENT,
+                    "enable_user_personal_info": app.state.config.ENABLE_USER_PERSONAL_INFO,
                     "enable_web_search": app.state.config.ENABLE_WEB_SEARCH,
                     "jwt_expires_in": f"{parse_duration(app.state.config.JWT_EXPIRES_IN).total_seconds()}" if parse_duration(app.state.config.JWT_EXPIRES_IN) else "0",
                     "enable_code_execution": app.state.config.ENABLE_CODE_EXECUTION,
