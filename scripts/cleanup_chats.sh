@@ -19,7 +19,9 @@
 #   ./cleanup_chats.sh --days 30 --by updated_at --execute
 #
 # 환경변수:
-#   DATABASE_URL  PostgreSQL 접속 URL (예: postgresql://user:pass@host:5432/dbname)
+#   APP_USER      PostgreSQL 사용자
+#   APP_PASSWORD  PostgreSQL 비밀번호
+#   APP_DB        PostgreSQL 데이터베이스명
 #
 
 set -e
@@ -30,7 +32,9 @@ EMAIL=""
 USER_ID=""
 DATE_COL="created_at"
 EXECUTE=false
-DB_URL="${DATABASE_URL:-}"
+APP_USER="${APP_USER:-}"
+APP_PASSWORD="${APP_PASSWORD:-}"
+APP_DB="${APP_DB:-}"
 
 usage() {
     echo "사용법: $0 --days <일수> [옵션]"
@@ -43,7 +47,9 @@ usage() {
     echo "  --user-id <ID>          특정 사용자 ID (미지정 시 전체)"
     echo "  --by <created_at|updated_at>  기준 컬럼 (기본: created_at)"
     echo "  --execute               실제 삭제 실행 (미지정 시 dry-run)"
-    echo "  --database-url <URL>    PostgreSQL URL (미지정 시 DATABASE_URL 환경변수)"
+    echo "  --app-user <사용자>     DB 사용자 (미지정 시 APP_USER 환경변수)"
+    echo "  --app-password <비밀번호> DB 비밀번호 (미지정 시 APP_PASSWORD 환경변수)"
+    echo "  --app-db <DB명>         DB 이름 (미지정 시 APP_DB 환경변수)"
     echo "  -y, --yes               확인 프롬프트 건너뛰기 (cron용)"
     echo "  -h, --help              도움말"
     exit 1
@@ -64,7 +70,9 @@ while [ $# -gt 0 ]; do
         --user-id)     USER_ID="$2"; shift 2 ;;
         --by)          DATE_COL="$2"; shift 2 ;;
         --execute)     EXECUTE=true; shift ;;
-        --database-url) DB_URL="$2"; shift 2 ;;
+        --app-user)     APP_USER="$2"; shift 2 ;;
+        --app-password) APP_PASSWORD="$2"; shift 2 ;;
+        --app-db)       APP_DB="$2"; shift 2 ;;
         -y|--yes)      AUTO_YES=true; shift ;;
         -h|--help)     usage ;;
         *)             echo "[ERROR] 알 수 없는 옵션: $1"; usage ;;
@@ -77,10 +85,12 @@ if [ -z "$DAYS" ]; then
     usage
 fi
 
-if [ -z "$DB_URL" ]; then
-    echo "[ERROR] DATABASE_URL 환경변수를 설정하거나 --database-url 옵션을 사용하세요."
+if [ -z "$APP_USER" ] || [ -z "$APP_PASSWORD" ] || [ -z "$APP_DB" ]; then
+    echo "[ERROR] APP_USER, APP_PASSWORD, APP_DB 환경변수를 설정하거나 해당 옵션을 사용하세요."
     exit 1
 fi
+
+DB_URL="postgresql://${APP_USER}:${APP_PASSWORD}@localhost:5432/${APP_DB}"
 
 if [ "$DATE_COL" != "created_at" ] && [ "$DATE_COL" != "updated_at" ]; then
     echo "[ERROR] --by 옵션은 created_at 또는 updated_at만 가능합니다."
