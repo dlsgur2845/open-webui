@@ -62,17 +62,25 @@ if [ $# -eq 0 ]; then
     usage
 fi
 
+# 값이 필요한 옵션의 인자 존재 여부 확인 헬퍼
+require_arg() {
+    if [ $# -lt 2 ] || echo "$2" | grep -q '^--'; then
+        echo "[ERROR] '$1' 옵션에는 값이 필요합니다."
+        usage
+    fi
+}
+
 # 인자 파싱
 while [ $# -gt 0 ]; do
     case "$1" in
-        --days)        DAYS="$2"; shift 2 ;;
-        --email)       EMAIL="$2"; shift 2 ;;
-        --user-id)     USER_ID="$2"; shift 2 ;;
-        --by)          DATE_COL="$2"; shift 2 ;;
+        --days)        require_arg "$1" "${2:-}"; DAYS="$2"; shift 2 ;;
+        --email)       require_arg "$1" "${2:-}"; EMAIL="$2"; shift 2 ;;
+        --user-id)     require_arg "$1" "${2:-}"; USER_ID="$2"; shift 2 ;;
+        --by)          require_arg "$1" "${2:-}"; DATE_COL="$2"; shift 2 ;;
         --execute)     EXECUTE=true; shift ;;
-        --app-user)     APP_USER="$2"; shift 2 ;;
-        --app-password) APP_PASSWORD="$2"; shift 2 ;;
-        --app-db)       APP_DB="$2"; shift 2 ;;
+        --app-user)     require_arg "$1" "${2:-}"; APP_USER="$2"; shift 2 ;;
+        --app-password) require_arg "$1" "${2:-}"; APP_PASSWORD="$2"; shift 2 ;;
+        --app-db)       require_arg "$1" "${2:-}"; APP_DB="$2"; shift 2 ;;
         -y|--yes)      AUTO_YES=true; shift ;;
         -h|--help)     usage ;;
         *)             echo "[ERROR] 알 수 없는 옵션: $1"; usage ;;
@@ -89,6 +97,24 @@ if [ -z "$APP_USER" ] || [ -z "$APP_PASSWORD" ] || [ -z "$APP_DB" ]; then
     echo "[ERROR] APP_USER, APP_PASSWORD, APP_DB 환경변수를 설정하거나 해당 옵션을 사용하세요."
     exit 1
 fi
+
+# 로그 파일 설정 (스크립트와 동일 디렉토리)
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+LOG_FILE="${SCRIPT_DIR}/cleanup_chats.log"
+
+# 로그 출력 헬퍼: 콘솔 + 파일 동시 출력
+log() {
+    echo "$@" | tee -a "$LOG_FILE"
+}
+
+# 로그 시작 구분선
+{
+    echo ""
+    echo "================================================================"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] 실행 시작"
+    echo "  실행 인자: --days ${DAYS} --by ${DATE_COL} ${EMAIL:+--email $EMAIL} ${USER_ID:+--user-id $USER_ID} ${EXECUTE:+--execute}"
+    echo "================================================================"
+} >> "$LOG_FILE"
 
 DB_URL="postgresql://${APP_USER}:${APP_PASSWORD}@localhost:5432/${APP_DB}"
 
@@ -108,44 +134,44 @@ CUTOFF_DISPLAY=$(date -d "@${CUTOFF_EPOCH}" "+%Y-%m-%d %H:%M:%S" 2>/dev/null \
     || date -r "${CUTOFF_EPOCH}" "+%Y-%m-%d %H:%M:%S" 2>/dev/null \
     || echo "${CUTOFF_EPOCH}")
 
-echo "============================================================"
-echo "Open WebUI 채팅 내역 정리"
-echo "============================================================"
-echo "  기준 컬럼 : ${DATE_COL}"
-echo "  삭제 기준 : ${DAYS}일 이전 (${CUTOFF_DISPLAY} 이전)"
+log "============================================================"
+log "Open WebUI 채팅 내역 정리"
+log "============================================================"
+log "  기준 컬럼 : ${DATE_COL}"
+log "  삭제 기준 : ${DAYS}일 이전 (${CUTOFF_DISPLAY} 이전)"
 
 # 이메일로 user_id 조회
 if [ -n "$EMAIL" ]; then
     USER_ID=$(run_sql "SELECT id FROM \"user\" WHERE email = '$(echo "$EMAIL" | sed "s/'/''/g")' LIMIT 1;")
     if [ -z "$USER_ID" ]; then
-        echo "[ERROR] 이메일 '${EMAIL}'에 해당하는 사용자를 찾을 수 없습니다."
+        log "[ERROR] 이메일 '${EMAIL}'에 해당하는 사용자를 찾을 수 없습니다."
         exit 1
     fi
     USER_NAME=$(run_sql "SELECT name FROM \"user\" WHERE id = '${USER_ID}';")
-    echo "  사용자 확인: id=${USER_ID}, name=${USER_NAME}, email=${EMAIL}"
+    log "  사용자 확인: id=${USER_ID}, name=${USER_NAME}, email=${EMAIL}"
 fi
 
 if [ -n "$USER_ID" ]; then
-    echo "  대상 사용자: ${USER_ID}"
+    log "  대상 사용자: ${USER_ID}"
     USER_FILTER="AND user_id = '${USER_ID}'"
 else
-    echo "  대상 사용자: 전체"
+    log "  대상 사용자: 전체"
     USER_FILTER=""
 fi
 
 # 대상 건수 확인
 COUNT=$(run_sql "SELECT COUNT(*) FROM chat WHERE ${DATE_COL} < ${CUTOFF_EPOCH} AND user_id NOT LIKE 'shared-%%' ${USER_FILTER};")
-echo "  대상 채팅 수: ${COUNT}건"
+log "  대상 채팅 수: ${COUNT}건"
 
 if [ "$COUNT" -eq 0 ] 2>/dev/null; then
-    echo ""
-    echo "삭제 대상이 없습니다."
+    log ""
+    log "삭제 대상이 없습니다."
     exit 0
 fi
 
 # 미리보기
-echo ""
-echo "--- 삭제 대상 미리보기 (최대 10건) ---"
+log ""
+log "--- 삭제 대상 미리보기 (최대 10건) ---"
 run_sql "
 SELECT
     LEFT(id, 8) || '...' AS id,
@@ -162,12 +188,12 @@ LIMIT 10;
 " | while IFS='|' read -r cid cuser ctitle ccreated cupdated; do
     printf "  [%s] user=%-16s title=%-40s created=%s updated=%s\n" \
         "$cid" "$cuser" "$ctitle" "$ccreated" "$cupdated"
-done
+done | tee -a "$LOG_FILE"
 
 # dry-run 모드
 if [ "$EXECUTE" != true ]; then
-    echo ""
-    echo "[DRY-RUN] --execute 플래그 없이 실행되었습니다. 실제 삭제는 수행되지 않았습니다."
+    log ""
+    log "[DRY-RUN] --execute 플래그 없이 실행되었습니다. 실제 삭제는 수행되지 않았습니다."
     exit 0
 fi
 
@@ -176,10 +202,27 @@ if [ "$AUTO_YES" != true ]; then
     printf "\n정말로 %s건의 채팅을 삭제하시겠습니까? (yes/no): " "$COUNT"
     read -r CONFIRM
     if [ "$CONFIRM" != "yes" ]; then
-        echo "취소되었습니다."
+        log "취소되었습니다."
         exit 0
     fi
 fi
+
+# 삭제 대상 전체 목록을 로그 파일에 기록 (콘솔에는 출력하지 않음)
+echo "--- 삭제 대상 전체 목록 (${COUNT}건) ---" >> "$LOG_FILE"
+run_sql "
+SELECT
+    id,
+    user_id,
+    LEFT(COALESCE(title, '(제목없음)'), 60) AS title,
+    to_timestamp(created_at)::timestamp(0) AS created,
+    to_timestamp(updated_at)::timestamp(0) AS updated
+FROM chat
+WHERE ${DATE_COL} < ${CUTOFF_EPOCH}
+  AND user_id NOT LIKE 'shared-%%'
+  ${USER_FILTER}
+ORDER BY ${DATE_COL} ASC;
+" >> "$LOG_FILE"
+echo "--- 전체 목록 끝 ---" >> "$LOG_FILE"
 
 # shared 채팅 삭제
 SHARED_DELETED=$(run_sql "
@@ -193,7 +236,7 @@ WHERE user_id IN (
 );
 SELECT COUNT(*);
 " 2>/dev/null || echo "0")
-echo "  shared 채팅 삭제 완료"
+log "  shared 채팅 삭제 완료"
 
 # 본 채팅 삭제
 MAIN_DELETED=$(run_sql "
@@ -202,9 +245,15 @@ WHERE ${DATE_COL} < ${CUTOFF_EPOCH}
   AND user_id NOT LIKE 'shared-%%'
   ${USER_FILTER};
 ")
-echo ""
-echo "[완료] 채팅 삭제가 완료되었습니다."
+log ""
+log "[완료] 채팅 삭제가 완료되었습니다."
+log "  실행 시각   : $(date '+%Y-%m-%d %H:%M:%S')"
+log "  삭제 대상   : ${COUNT}건"
+log "  기준 컬럼   : ${DATE_COL}"
+log "  기준 일수   : ${DAYS}일 이전 (${CUTOFF_DISPLAY} 이전)"
+log "  대상 사용자 : ${USER_ID:-전체}"
 
 # 삭제 후 잔여 확인
 REMAINING=$(run_sql "SELECT COUNT(*) FROM chat WHERE user_id NOT LIKE 'shared-%%' ${USER_FILTER};")
-echo "  남은 채팅 수: ${REMAINING}건"
+log "  남은 채팅 수: ${REMAINING}건"
+log "------------------------------------------------------------"
