@@ -100,7 +100,7 @@ fi
 
 # 로그 파일 설정 (스크립트와 동일 디렉토리)
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-LOG_FILE="${SCRIPT_DIR}/cleanup_chats.log"
+LOG_FILE="${SCRIPT_DIR}/cleanup_chats_$(date '+%Y%m%d_%H%M%S').log"
 
 # 로그 출력 헬퍼: 콘솔 + 파일 동시 출력
 log() {
