@@ -4,8 +4,7 @@
 #
 # 최근 7일간 일별 접속(활동)한 고유 사용자 수를 조회합니다.
 # - chat 테이블의 created_at/updated_at 기준 활동 사용자 집계
-# - user 테이블의 last_active_at 기준 활동 사용자 집계
-# 두 가지 데이터를 종합하여 일별 DAU(Daily Active Users)를 산출합니다.
+# - 일별 목록에는 주말 포함, 평균 DAU 계산 시 주말(토/일) 제외
 #
 # 사용법:
 #   # 최근 7일 일별 접속 사용자 수 조회
@@ -91,13 +90,12 @@ echo "  전체 등록 사용자: ${TOTAL_USERS}명"
 echo "============================================================"
 echo ""
 
-# 일별 접속 사용자 수 조회
-# chat 테이블의 created_at, updated_at과 user 테이블의 last_active_at를
-# UNION하여 일별 고유 사용자 수를 집계합니다.
+# 일별 접속 사용자 수 조회 (주말 포함)
+# chat 테이블의 created_at, updated_at를 UNION하여 일별 고유 사용자 수를 집계합니다.
 echo "--- 일별 접속 사용자 수 (최근 ${DAYS}일) ---"
 echo ""
-printf "  %-12s  %s\n" "날짜" "접속 사용자 수"
-printf "  %-12s  %s\n" "------------" "--------------"
+printf "  %-12s  %-4s  %s\n" "날짜" "요일" "접속 사용자 수"
+printf "  %-12s  %-4s  %s\n" "------------" "----" "--------------"
 
 run_sql "
 WITH date_range AS (
@@ -128,21 +126,41 @@ active_users AS (
 )
 SELECT
     dr.day,
+    CASE EXTRACT(DOW FROM dr.day)
+        WHEN 0 THEN '일'
+        WHEN 1 THEN '월'
+        WHEN 2 THEN '화'
+        WHEN 3 THEN '수'
+        WHEN 4 THEN '목'
+        WHEN 5 THEN '금'
+        WHEN 6 THEN '토'
+    END AS dow,
     COALESCE(COUNT(DISTINCT au.user_id), 0) AS dau
 FROM date_range dr
 LEFT JOIN active_users au ON dr.day = au.active_date
 GROUP BY dr.day
 ORDER BY dr.day ASC;
-" | while IFS='|' read -r day count; do
-    printf "  %-12s  %s명\n" "$day" "$count"
+" | while IFS='|' read -r day dow count; do
+    printf "  %-12s  %-4s  %s명\n" "$day" "$dow" "$count"
 done
 
 echo ""
 echo "------------------------------------------------------------"
 
-# 7일 평균 DAU
+# 평균 DAU (주말 제외, 평일만)
 AVG_DAU=$(run_sql "
-WITH active_users AS (
+WITH date_range AS (
+    SELECT generate_series(
+        (CURRENT_DATE - INTERVAL '1 day' * $(( DAYS - 1 )))::date,
+        CURRENT_DATE,
+        '1 day'::interval
+    )::date AS day
+),
+weekdays AS (
+    SELECT day FROM date_range
+    WHERE EXTRACT(DOW FROM day) NOT IN (0, 6)
+),
+active_users AS (
     SELECT DISTINCT
         to_timestamp(created_at)::date AS active_date,
         user_id
@@ -161,16 +179,17 @@ WITH active_users AS (
 ),
 daily_counts AS (
     SELECT
-        active_date,
-        COUNT(DISTINCT user_id) AS dau
-    FROM active_users
-    GROUP BY active_date
+        wd.day,
+        COALESCE(COUNT(DISTINCT au.user_id), 0) AS dau
+    FROM weekdays wd
+    LEFT JOIN active_users au ON wd.day = au.active_date
+    GROUP BY wd.day
 )
 SELECT ROUND(AVG(dau), 1) FROM daily_counts;
 ")
 
 echo ""
-echo "  ${DAYS}일 평균 DAU: ${AVG_DAU}명"
+echo "  ${DAYS}일 평균 DAU (평일만): ${AVG_DAU}명"
 echo ""
 
 # 오늘 접속 사용자 목록
