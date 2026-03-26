@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: ax/open-webui:0.6.43-fix2-AppleSilicon
+    image: ax/open-webui:0.6.43-fix2.1-AppleSilicon
     container_name: open-webui
     volumes:
       - open-webui:/app/backend/data
@@ -17,7 +17,7 @@ services:
       - 'ENABLE_PASSWORD_VALIDATION=true'
       - 'PASSWORD_BLACKLIST=kftc,admin'
       - 'ENABLE_IMAGE_CAPTURE=true'
-      - 'ENABLE_WEBPAGE_ATTACHMENT=true'
+      - 'ENABLE_WEBPAGE_ATTACHMENT=false'
       - 'ENABLE_USER_PERSONAL_INFO=false'
     extra_hosts:
       - host.docker.internal:host-gateway
