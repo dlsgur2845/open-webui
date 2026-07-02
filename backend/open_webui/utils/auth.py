@@ -455,11 +455,12 @@ async def get_current_user(
 
                 # Single Session Enforcement: a session token's JTI must match the
                 # one stored in the DB (rotated on signin/signup/ldap/oauth/refresh,
-                # cleared on signout). Internally issued service tokens that carry a
-                # 'typ' claim (e.g. automation runs) are exempt — they are signed
-                # server-side and are not user sessions.
+                # cleared on signout). The only exemption is the server-internal
+                # automation-run token (typ='automation', issued in
+                # utils/automations.py and never sent to a client); any other typ
+                # value stays subject to the JTI check (fail-closed).
                 token_jti = data.get('jti')
-                if token_jti and not data.get('typ'):
+                if token_jti and data.get('typ') != 'automation':
                     user_jti = await Auths.get_user_token_jti_by_id(user.id)
                     if user_jti != token_jti:
                         raise HTTPException(
