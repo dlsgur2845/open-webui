@@ -406,6 +406,8 @@ export const refreshSession = async (token: string) => {
 
 ### 6. 활동 감지 기반 자동 갱신(슬라이딩 세션) — ★미커밋 작업트리 변경★
 
+> **[설계 변경 2026-07-02, 0.10.2-fix1]** 아래 서술의 "최근 60초 활동 윈도우 + 1초 타이머에서 `max(수명/2, 경고임계+20s)` 임계로 갱신" 방식은 **이벤트 구동 방식으로 교체**됐다: 활동 이벤트(mousemove/keydown/click/touchstart/scroll capture)가 발생한 **그 순간** 잔여시간이 **토큰 수명의 절반 이하**이면 `attemptAutoRefresh()`를 호출한다(`onUserActivity`). 타이머는 만료 로그아웃/경고 모달/배지 표시만 담당한다. `lastActive`·`ACTIVITY_REFRESH_WINDOW`·`refreshThreshold` 하한은 제거됐고, 스로틀(10초)·공유 프로미스 합류·BroadcastChannel 탭 동기화·onDestroy 정리는 그대로 유지된다. 최종 구현은 0.10.2-fix1 브랜치의 `src/routes/(app)/+layout.svelte`를 기준으로 할 것.
+
 **목적/배경**
 - 커밋된 HEAD 상태는 "자동 갱신 없음(No Auto-Refresh), 만료 임박 시 모달로 수동 연장" 정책이었다(주석 `// Logic: No Auto-Refresh. Show Modal if expiring.`). 작업트리에서 이 주석을 제거하고, **사용 중인 사용자는 모달을 보기 전에 토큰이 자동 연장**되도록 슬라이딩 세션을 재도입했다(모달은 갱신 실패 시 fallback). 최초 커밋(#1)에도 1분 주기 활동 갱신이 있었으나 #7에서 제거됐던 것을 개선된 형태로 되살린 것.
 

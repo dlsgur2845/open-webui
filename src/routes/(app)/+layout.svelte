@@ -57,14 +57,14 @@
 	let showTimeoutModal = false;
 	let showAgreement = false;
 
-	// Activity Monitor & Token Refresh State
-	let lastActive = Date.now();
+	// Token Refresh State
 	let lastRefresh = Date.now();
 	let clockSkew = 0;
 	let tokenDuration = 60 * 60; // Default 1 hour
 
-	// Auto refresh on user activity (sliding session)
-	const ACTIVITY_REFRESH_WINDOW = 60 * 1000; // ms - user counts as "active" if an action happened within this window
+	// Auto refresh on user activity (sliding session): a user action while the
+	// token is past half of its lifetime triggers a renewal — no activity
+	// window is tracked, only the moment of actual use counts.
 	const MIN_AUTO_REFRESH_INTERVAL = 10 * 1000; // ms - minimum gap between auto refresh attempts (spaces out retries on failure)
 	let autoRefreshInFlight = false;
 	let lastAutoRefreshAttempt = 0;
@@ -220,8 +220,18 @@
 	};
 
 	// Helper functions defined at top-level
-	const updateLastActive = () => {
-		lastActive = Date.now();
+	// Fired on every user action (click, keydown, touch, scroll, mousemove):
+	// renew the session only at the moment of actual use, and only once the
+	// token has passed half of its lifetime. attemptAutoRefresh throttles the
+	// high-frequency events (mousemove) down to one request per interval.
+	const onUserActivity = () => {
+		if (!$user?.expires_at) {
+			return;
+		}
+		const diff = $user.expires_at - (Math.floor(Date.now() / 1000) - clockSkew);
+		if (diff > 0 && diff <= Math.floor(tokenDuration / 2)) {
+			attemptAutoRefresh();
+		}
 	};
 
 	const calculateClockSkew = (serverTimestamp: number) => {
@@ -470,12 +480,12 @@
 			};
 		}
 
-		window.addEventListener('mousemove', updateLastActive);
-		window.addEventListener('keydown', updateLastActive);
-		window.addEventListener('click', updateLastActive);
-		window.addEventListener('touchstart', updateLastActive);
+		window.addEventListener('mousemove', onUserActivity);
+		window.addEventListener('keydown', onUserActivity);
+		window.addEventListener('click', onUserActivity);
+		window.addEventListener('touchstart', onUserActivity);
 		// capture: true so scrolling inside nested containers (chat list, sidebar) counts too
-		window.addEventListener('scroll', updateLastActive, true);
+		window.addEventListener('scroll', onUserActivity, true);
 
 		// Integrated Timer & Auto Refresh (check every second)
 		timerInterval = setInterval(async () => {
@@ -498,18 +508,8 @@
 					return;
 				}
 
-				// Sliding session: while the user is active, renew the token automatically
-				// once it drops below half its lifetime, so only idle sessions ever reach
-				// the timeout modal. The modal stays as a fallback if refresh keeps failing.
-				const isActive = Date.now() - lastActive <= ACTIVITY_REFRESH_WINDOW;
-				const refreshThreshold = Math.max(
-					Math.floor(tokenDuration / 2),
-					warningThreshold + 20
-				);
-				if (isVisible && isActive && diff <= refreshThreshold) {
-					attemptAutoRefresh();
-				}
-
+				// Auto refresh is event-driven (onUserActivity) — the timer only
+				// handles expiry, the warning modal and the countdown badge.
 				if (diff <= warningThreshold) {
 					console.log(
 						`[Timer] Show Modal: diff=${diff}, threshold=${warningThreshold}, isVisible=${isVisible}, showing=${showTimeoutModal}`
@@ -552,11 +552,11 @@
 	// onMount is async, so a cleanup function returned from it would be ignored —
 	// teardown must live in onDestroy.
 	onDestroy(() => {
-		window.removeEventListener('mousemove', updateLastActive);
-		window.removeEventListener('keydown', updateLastActive);
-		window.removeEventListener('click', updateLastActive);
-		window.removeEventListener('touchstart', updateLastActive);
-		window.removeEventListener('scroll', updateLastActive, true);
+		window.removeEventListener('mousemove', onUserActivity);
+		window.removeEventListener('keydown', onUserActivity);
+		window.removeEventListener('click', onUserActivity);
+		window.removeEventListener('touchstart', onUserActivity);
+		window.removeEventListener('scroll', onUserActivity, true);
 		if (timerInterval) {
 			clearInterval(timerInterval);
 		}
