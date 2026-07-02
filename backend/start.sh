@@ -98,7 +98,8 @@ fi
 
 # Run migrations explicitly before serving traffic. The app also runs them at
 # startup, but this guarantees the custom token_jti migration is applied first.
-WEBUI_SECRET_KEY="${WEBUI_SECRET_KEY:-}" alembic -c open_webui/alembic.ini upgrade head
+# alembic.ini's script_location is relative to the CWD, so run from open_webui/.
+(cd open_webui && WEBUI_SECRET_KEY="${WEBUI_SECRET_KEY:-}" alembic upgrade head)
 
 # ── Launch uvicorn ───────────────────────────────────────────────────────────
 
