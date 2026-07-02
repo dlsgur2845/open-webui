@@ -111,8 +111,6 @@ export const getSessionUser = async (token: string) => {
 };
 
 export const refreshSession = async (token: string) => {
-	let error = null;
-
 	const res = await fetch(`${WEBUI_API_BASE_URL}/auths/refresh`, {
 		method: 'POST',
 		headers: {
@@ -120,22 +118,16 @@ export const refreshSession = async (token: string) => {
 			Authorization: `Bearer ${token}`
 		},
 		credentials: 'include'
-	})
-		.then(async (res) => {
-			if (!res.ok) throw await res.json();
-			return res.json();
-		})
-		.catch((err) => {
-			console.error(err);
-			error = err.detail;
-			return null;
-		});
+	});
 
-	if (error) {
-		throw error;
+	// Preserve the HTTP status so callers can tell a revoked token (401)
+	// apart from a transient failure and redirect to /auth accordingly.
+	if (!res.ok) {
+		const body = await res.json().catch(() => ({}));
+		throw { status: res.status, detail: body?.detail ?? res.statusText };
 	}
 
-	return res;
+	return res.json();
 };
 
 export const ldapUserSignIn = async (user: string, password: string) => {

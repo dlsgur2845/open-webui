@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { toast } from 'svelte-sonner';
-	import { onMount, tick, getContext } from 'svelte';
+	import { onMount, onDestroy, tick, getContext } from 'svelte';
 	import { openDB, deleteDB } from 'idb';
 	import fileSaver from 'file-saver';
 	const { saveAs } = fileSaver;
@@ -57,6 +57,17 @@
 	let lastRefresh = Date.now();
 	let clockSkew = 0;
 	let tokenDuration = 60 * 60; // Default 1 hour
+
+	// Auto refresh on user activity (sliding session)
+	const ACTIVITY_REFRESH_WINDOW = 60 * 1000; // ms - user counts as "active" if an action happened within this window
+	const MIN_AUTO_REFRESH_INTERVAL = 10 * 1000; // ms - minimum gap between auto refresh attempts (spaces out retries on failure)
+	let autoRefreshInFlight = false;
+	let lastAutoRefreshAttempt = 0;
+	let timerInterval: ReturnType<typeof setInterval> | null = null;
+	// Tokens live in sessionStorage (per tab) while the backend enforces a single
+	// JTI per user, so a refresh in one tab invalidates every other tab's token.
+	// Broadcast refreshed tokens so all tabs stay on the current one.
+	let sessionChannel: BroadcastChannel | null = null;
 
 	const i18n = getContext('i18n');
 
@@ -167,24 +178,44 @@
 		}
 	};
 
-	const refreshSessionHelper = async () => {
-		if (sessionStorage.token) {
+	const adoptRefreshedToken = (res: any) => {
+		sessionStorage.token = res.token;
+		if (res.expires_at) {
+			user.update((u: any) => ({ ...u, expires_at: res.expires_at }));
+
+			if (res.server_timestamp) {
+				tokenDuration = res.expires_at - res.server_timestamp;
+			}
+		}
+		if (res.server_timestamp) {
+			calculateClockSkew(res.server_timestamp);
+		}
+		lastRefresh = Date.now();
+		showTimeoutModal = false;
+	};
+
+	// Coalesce concurrent callers (timer, manual button, modal extend) onto one
+	// request: the backend rotates the JTI on every refresh, so parallel refreshes
+	// can leave the stored token and the DB JTI out of sync.
+	let refreshPromise: Promise<void> | null = null;
+	const refreshSessionHelper = () => {
+		if (refreshPromise) {
+			return refreshPromise;
+		}
+		refreshPromise = (async () => {
+			if (!sessionStorage.token) {
+				return;
+			}
 			try {
 				const res = await refreshSession(sessionStorage.token);
 				if (res && res.token) {
-					sessionStorage.token = res.token;
-					if (res.expires_at) {
-						user.update((u: any) => ({ ...u, expires_at: res.expires_at }));
-
-						if (res.server_timestamp) {
-							tokenDuration = res.expires_at - res.server_timestamp;
-						}
-					}
-					if (res.server_timestamp) {
-						calculateClockSkew(res.server_timestamp);
-					}
-					lastRefresh = Date.now();
-					showTimeoutModal = false;
+					adoptRefreshedToken(res);
+					sessionChannel?.postMessage({
+						type: 'token-refreshed',
+						token: res.token,
+						expires_at: res.expires_at,
+						server_timestamp: res.server_timestamp
+					});
 				}
 			} catch (err: any) {
 				console.error('Refresh failed:', err);
@@ -195,7 +226,10 @@
 					window.location.href = '/auth';
 				}
 			}
-		}
+		})().finally(() => {
+			refreshPromise = null;
+		});
+		return refreshPromise;
 	};
 
 	onMount(async () => {
@@ -340,26 +374,39 @@
 			}
 		}
 
-		$: if ($config?.features?.jwt_expires_in) {
+		// Runs once at mount (config is loaded by the root layout before this mounts);
+		// refreshSessionHelper keeps tokenDuration up to date afterwards.
+		if ($config?.features?.jwt_expires_in) {
 			const configDuration = parseFloat($config.features.jwt_expires_in);
 			if (!isNaN(configDuration) && configDuration > 0) {
 				tokenDuration = configDuration;
 			}
 		}
 
+		if (typeof BroadcastChannel !== 'undefined') {
+			sessionChannel = new BroadcastChannel('session-token');
+			sessionChannel.onmessage = (event: MessageEvent) => {
+				const msg = event.data;
+				if (msg?.type === 'token-refreshed' && msg.token) {
+					adoptRefreshedToken(msg);
+				}
+			};
+		}
+
 		window.addEventListener('mousemove', updateLastActive);
 		window.addEventListener('keydown', updateLastActive);
 		window.addEventListener('click', updateLastActive);
-		window.addEventListener('scroll', updateLastActive);
+		window.addEventListener('touchstart', updateLastActive);
+		// capture: true so scrolling inside nested containers (chat list, sidebar) counts too
+		window.addEventListener('scroll', updateLastActive, true);
 
 		// Integrated Timer & Auto Refresh (check every second)
-		const timerInterval = setInterval(async () => {
+		timerInterval = setInterval(async () => {
 			if ($user?.expires_at) {
 				// Use server time for calculation: now - clockSkew
 				const currentServerTime = Math.floor(Date.now() / 1000) - clockSkew;
 				const diff = $user.expires_at - currentServerTime;
 
-				// Logic: No Auto-Refresh. Show Modal if expiring.
 				const isVisible = document.visibilityState === 'visible';
 				// warningThreshold: When to show the modal
 				// If token duration > 60s, show at 60s remaining.
@@ -370,6 +417,18 @@
 					clearInterval(timerInterval);
 					await logoutHandler();
 					return;
+				}
+
+				// Sliding session: while the user is active, renew the token automatically
+				// once it drops below half its lifetime, so only idle sessions ever reach
+				// the timeout modal. The modal stays as a fallback if refresh keeps failing.
+				const isActive = Date.now() - lastActive <= ACTIVITY_REFRESH_WINDOW;
+				const refreshThreshold = Math.max(
+					Math.floor(tokenDuration / 2),
+					warningThreshold + 20
+				);
+				if (isVisible && isActive && diff <= refreshThreshold) {
+					attemptAutoRefresh();
 				}
 
 				if (diff <= warningThreshold) {
@@ -409,14 +468,20 @@
 		}
 
 		loaded = true;
+	});
 
-		return () => {
-			window.removeEventListener('mousemove', updateLastActive);
-			window.removeEventListener('keydown', updateLastActive);
-			window.removeEventListener('click', updateLastActive);
-			window.removeEventListener('scroll', updateLastActive);
+	// onMount is async, so a cleanup function returned from it would be ignored —
+	// teardown must live in onDestroy.
+	onDestroy(() => {
+		window.removeEventListener('mousemove', updateLastActive);
+		window.removeEventListener('keydown', updateLastActive);
+		window.removeEventListener('click', updateLastActive);
+		window.removeEventListener('touchstart', updateLastActive);
+		window.removeEventListener('scroll', updateLastActive, true);
+		if (timerInterval) {
 			clearInterval(timerInterval);
-		};
+		}
+		sessionChannel?.close();
 	});
 
 	const logoutHandler = async () => {
@@ -436,6 +501,23 @@
 
 		// Force reload to clear state and ensure clean logout
 		window.location.href = redirectUrl;
+	};
+
+	const attemptAutoRefresh = async () => {
+		if (autoRefreshInFlight) {
+			return;
+		}
+		const now = Date.now();
+		if (now - lastAutoRefreshAttempt < MIN_AUTO_REFRESH_INTERVAL) {
+			return;
+		}
+		lastAutoRefreshAttempt = now;
+		autoRefreshInFlight = true;
+		try {
+			await refreshSessionHelper();
+		} finally {
+			autoRefreshInFlight = false;
+		}
 	};
 
 	let manualRefreshLoading = false;
