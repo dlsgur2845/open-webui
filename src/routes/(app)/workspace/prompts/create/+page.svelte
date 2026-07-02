@@ -19,7 +19,7 @@
 	let clone = false;
 
 	const onSubmit = async (_prompt) => {
-		const res = await createNewPrompt(localStorage.token, _prompt).catch((error) => {
+		const res = await createNewPrompt(sessionStorage.token, _prompt).catch((error) => {
 			toast.error(`${error}`);
 			return null;
 		});

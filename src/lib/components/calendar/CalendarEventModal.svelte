@@ -128,7 +128,7 @@
 			const endNs = endDate ? dateTimeToNs(endDate, allDay ? '23:59' : endTime) : undefined;
 
 			if (event && !event.meta?.automation_id) {
-				const result = await updateCalendarEvent(localStorage.token, event.id, {
+				const result = await updateCalendarEvent(sessionStorage.token, event.id, {
 					calendar_id: calendarId,
 					title: title.trim(),
 					description: description.trim() || undefined,
@@ -156,7 +156,7 @@
 					location: location.trim() || undefined,
 					meta: { alert_minutes: alertMinutes }
 				};
-				const result = await createCalendarEvent(localStorage.token, form);
+				const result = await createCalendarEvent(sessionStorage.token, form);
 				if (result) {
 					toast.success($i18n.t('Event created'));
 					dispatch('save', result);
@@ -174,7 +174,7 @@
 		if (!event || event.meta?.automation_id) return;
 		loading = true;
 		try {
-			await deleteCalendarEvent(localStorage.token, event.id);
+			await deleteCalendarEvent(sessionStorage.token, event.id);
 			toast.success($i18n.t('Event deleted'));
 			dispatch('delete', event);
 			show = false;

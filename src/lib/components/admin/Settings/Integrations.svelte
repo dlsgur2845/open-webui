@@ -58,7 +58,7 @@
 	};
 
 	const updateHandler = async () => {
-		const res = await setToolServerConnections(localStorage.token, {
+		const res = await setToolServerConnections(sessionStorage.token, {
 			TOOL_SERVER_CONNECTIONS: servers
 		}).catch((err) => {
 			toast.error($i18n.t('Failed to save connections'));
@@ -71,7 +71,7 @@
 	};
 
 	const saveTerminalServers = async () => {
-		const res = await setTerminalServerConnections(localStorage.token, {
+		const res = await setTerminalServerConnections(sessionStorage.token, {
 			TERMINAL_SERVER_CONNECTIONS: terminalConnections
 		}).catch((err) => {
 			toast.error($i18n.t('Failed to save terminal servers'));
@@ -86,12 +86,12 @@
 			const existingDirectTerminals = (($terminalServers ?? []) as TerminalConnection[]).filter(
 				(t) => !t.id
 			);
-			const systemTerminals = await getTerminalServers(localStorage.token);
+			const systemTerminals = await getTerminalServers(sessionStorage.token);
 			const systemEntries = systemTerminals.map((t) => ({
 				id: t.id,
 				url: `${WEBUI_API_BASE_URL}/terminals/${t.id}`,
 				name: t.name,
-				key: localStorage.token
+				key: sessionStorage.token
 			}));
 			terminalServers.set([...existingDirectTerminals, ...systemEntries] as any);
 		}
@@ -118,12 +118,12 @@
 	};
 
 	onMount(async () => {
-		const res = await getToolServerConnections(localStorage.token);
+		const res = await getToolServerConnections(sessionStorage.token);
 		servers = res.TOOL_SERVER_CONNECTIONS as ToolServerConnection[];
 
 		// Load terminal server connections
 		try {
-			const terminalRes = await getTerminalServerConnections(localStorage.token);
+			const terminalRes = await getTerminalServerConnections(sessionStorage.token);
 			if (terminalRes?.TERMINAL_SERVER_CONNECTIONS) {
 				terminalConnections = terminalRes.TERMINAL_SERVER_CONNECTIONS as TerminalConnection[];
 			}

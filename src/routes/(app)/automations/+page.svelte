@@ -79,7 +79,7 @@
 
 		loading = true;
 		try {
-			const res = await getAutomationItems(localStorage.token, query, statusFilter, page).catch(
+			const res = await getAutomationItems(sessionStorage.token, query, statusFilter, page).catch(
 				(error) => {
 					toast.error(`${error}`);
 					return null;
@@ -98,7 +98,7 @@
 	};
 
 	const toggleHandler = async (automation: AutomationResponse) => {
-		const res = await toggleAutomationById(localStorage.token, automation.id).catch((err) => {
+		const res = await toggleAutomationById(sessionStorage.token, automation.id).catch((err) => {
 			toast.error(`${err}`);
 			return null;
 		});
@@ -117,7 +117,7 @@
 		);
 
 		try {
-			await Promise.all(targets.map((a) => toggleAutomationById(localStorage.token, a.id)));
+			await Promise.all(targets.map((a) => toggleAutomationById(sessionStorage.token, a.id)));
 		} catch (err) {
 			toast.error(`${err}`);
 			// Refresh from server to restore consistent state
@@ -126,7 +126,7 @@
 	};
 
 	const runNowHandler = async (automation: AutomationResponse) => {
-		const res = await runAutomationById(localStorage.token, automation.id).catch((err) => {
+		const res = await runAutomationById(sessionStorage.token, automation.id).catch((err) => {
 			toast.error(`${err}`);
 			return null;
 		});
@@ -136,7 +136,7 @@
 	};
 
 	const deleteHandler = async (automation: AutomationResponse) => {
-		const res = await deleteAutomationById(localStorage.token, automation.id).catch((err) => {
+		const res = await deleteAutomationById(sessionStorage.token, automation.id).catch((err) => {
 			toast.error(`${err}`);
 			return null;
 		});

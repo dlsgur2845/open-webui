@@ -18,7 +18,7 @@
 
 	const onSubmit = async (_prompt) => {
 		console.log(_prompt);
-		const updatedPrompt = await updatePromptById(localStorage.token, _prompt).catch((error) => {
+		const updatedPrompt = await updatePromptById(sessionStorage.token, _prompt).catch((error) => {
 			toast.error(`${error}`);
 			return null;
 		});
@@ -41,7 +41,7 @@
 
 	onMount(async () => {
 		if (promptId) {
-			const _prompt = await getPromptById(localStorage.token, promptId).catch((error) => {
+			const _prompt = await getPromptById(sessionStorage.token, promptId).catch((error) => {
 				toast.error(`${error}`);
 				return null;
 			});

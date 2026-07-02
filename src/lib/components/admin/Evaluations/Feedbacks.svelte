@@ -76,7 +76,7 @@
 	const getFeedbacks = async () => {
 		try {
 			const res = await getFeedbackItems(
-				localStorage.token,
+				sessionStorage.token,
 				orderBy,
 				direction,
 				page,
@@ -101,7 +101,7 @@
 
 	const loadModelIds = async () => {
 		try {
-			const res = await getFeedbackModelIds(localStorage.token);
+			const res = await getFeedbackModelIds(sessionStorage.token);
 			if (res) {
 				modelIds = res;
 			}
@@ -111,7 +111,7 @@
 	};
 
 	const deleteFeedbackHandler = async (feedbackId: string) => {
-		const response = await deleteFeedbackById(localStorage.token, feedbackId).catch((err) => {
+		const response = await deleteFeedbackById(sessionStorage.token, feedbackId).catch((err) => {
 			toast.error(err);
 			return null;
 		});
@@ -182,7 +182,7 @@
 	};
 
 	const exportHandler = async (format: 'json' | 'csv' = 'json') => {
-		const _feedbacks = await exportAllFeedbacks(localStorage.token, selectedModelId).catch(
+		const _feedbacks = await exportAllFeedbacks(sessionStorage.token, selectedModelId).catch(
 			(err) => {
 				toast.error(err);
 				return null;

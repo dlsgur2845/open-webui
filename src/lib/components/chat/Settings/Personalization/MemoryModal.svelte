@@ -32,8 +32,8 @@
 
 		const res = await (
 			edit
-				? updateMemoryById(localStorage.token, memory.id, content, type, path)
-				: addNewMemory(localStorage.token, content, type, path)
+				? updateMemoryById(sessionStorage.token, memory.id, content, type, path)
+				: addNewMemory(sessionStorage.token, content, type, path)
 		).catch((error) => {
 			toast.error(`${error}`);
 			return null;

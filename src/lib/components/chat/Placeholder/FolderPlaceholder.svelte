@@ -44,7 +44,7 @@
 		if (folder && folder.id) {
 			// Always use the shared folder endpoint so owners also see
 			// chats created by users who have write access to this folder.
-			const res = await getSharedFolderChats(localStorage.token, folder.id).catch((error) => {
+			const res = await getSharedFolderChats(sessionStorage.token, folder.id).catch((error) => {
 				console.error(error);
 				return null;
 			});
@@ -53,7 +53,7 @@
 				allChatsLoaded = true;
 			} else {
 				// Fallback to regular API (e.g. if user has no shared access)
-				const fallback = await getChatListByFolderId(localStorage.token, folder.id, page).catch(
+				const fallback = await getChatListByFolderId(sessionStorage.token, folder.id, page).catch(
 					() => []
 				);
 				chats = fallback || [];

@@ -74,14 +74,14 @@
 
 	const refreshSidebar = async () => {
 		currentChatPage.set(1);
-		await chats.set(await getChatList(localStorage.token, $currentChatPage));
-		await pinnedChats.set(await getPinnedChatList(localStorage.token));
+		await chats.set(await getChatList(sessionStorage.token, $currentChatPage));
+		await pinnedChats.set(await getPinnedChatList(sessionStorage.token));
 	};
 
 	const cloneChatHandler = async (id) => {
 		const chat = chatList?.find((c) => c.id === id);
 		const res = await cloneChatById(
-			localStorage.token,
+			sessionStorage.token,
 			id,
 			$i18n.t('Clone of {{TITLE}}', {
 				TITLE: chat?.title ?? 'Chat'
@@ -99,7 +99,7 @@
 
 	const archiveChatHandler = async (id) => {
 		try {
-			await archiveChatById(localStorage.token, id);
+			await archiveChatById(sessionStorage.token, id);
 
 			chatList = chatList?.filter((c) => c.id !== id) ?? null;
 
@@ -116,14 +116,14 @@
 	};
 
 	const deleteChatHandler = async (id) => {
-		const res = await deleteChatById(localStorage.token, id).catch((error) => {
+		const res = await deleteChatById(sessionStorage.token, id).catch((error) => {
 			toast.error(`${error}`);
 			return null;
 		});
 
 		if (res) {
 			chatList = chatList?.filter((c) => c.id !== id) ?? null;
-			tags.set(await getAllTags(localStorage.token));
+			tags.set(await getAllTags(sessionStorage.token));
 
 			if ($currentChatId === id) {
 				await goto('/');
@@ -136,7 +136,7 @@
 
 	const moveChatHandler = async (chatId, folderId) => {
 		if (chatId && folderId) {
-			const res = await updateChatFolderIdById(localStorage.token, chatId, folderId).catch(
+			const res = await updateChatFolderIdById(sessionStorage.token, chatId, folderId).catch(
 				(error) => {
 					toast.error(`${error}`);
 					return null;
@@ -172,7 +172,7 @@
 			return;
 		}
 
-		await updateChatById(localStorage.token, editingChatId, { title: trimmed });
+		await updateChatById(sessionStorage.token, editingChatId, { title: trimmed });
 
 		if (chatList) {
 			chatList = chatList.map((c) => (c.id === editingChatId ? { ...c, title: trimmed } : c));
@@ -192,7 +192,7 @@
 		if (!editingChatId || generating) return;
 
 		generating = true;
-		const chat = await getChatById(localStorage.token, editingChatId).catch(() => null);
+		const chat = await getChatById(sessionStorage.token, editingChatId).catch(() => null);
 
 		if (!chat) {
 			toast.error($i18n.t('Failed to load chat'));
@@ -235,7 +235,7 @@
 
 		editingChatTitle = '';
 
-		const generatedTitle = await generateTitle(localStorage.token, model, msgList).catch(
+		const generatedTitle = await generateTitle(sessionStorage.token, model, msgList).catch(
 			(error) => {
 				toast.error(`${error}`);
 				return null;
@@ -341,7 +341,7 @@
 
 		const chatId = chatList[selectedChatIdx].id;
 
-		const chat = await getChatById(localStorage.token, chatId).catch(async (error) => {
+		const chat = await getChatById(sessionStorage.token, chatId).catch(async (error) => {
 			return null;
 		});
 
@@ -386,10 +386,10 @@
 		page = 1;
 		chatList = null;
 		if (query === '') {
-			chatList = await getChatList(localStorage.token, page);
+			chatList = await getChatList(sessionStorage.token, page);
 		} else {
 			searchDebounceTimeout = setTimeout(async () => {
-				chatList = await getChatListBySearchText(localStorage.token, query, page);
+				chatList = await getChatListBySearchText(sessionStorage.token, query, page);
 
 				if ((chatList ?? []).length === 0) {
 					allChatsLoaded = true;
@@ -418,9 +418,9 @@
 		let newChatList = [];
 
 		if (query) {
-			newChatList = await getChatListBySearchText(localStorage.token, query, page);
+			newChatList = await getChatListBySearchText(sessionStorage.token, query, page);
 		} else {
-			newChatList = await getChatList(localStorage.token, page);
+			newChatList = await getChatList(sessionStorage.token, page);
 		}
 
 		// once the bottom of the list has been reached (no results) there is no need to continue querying

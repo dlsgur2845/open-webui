@@ -71,9 +71,9 @@
 
 	const load = async () => {
 		const [catalog, webhookList, groupList] = await Promise.all([
-			getEvents(localStorage.token),
-			getEventWebhooks(localStorage.token),
-			getGroups(localStorage.token, true).catch(() => [])
+			getEvents(sessionStorage.token),
+			getEventWebhooks(sessionStorage.token),
+			getGroups(sessionStorage.token, true).catch(() => [])
 		]);
 		eventItems = [...(catalog?.events ?? [])].sort((a, b) => a.event.localeCompare(b.event));
 		webhooks = sortWebhooks(webhookList ?? []);
@@ -252,7 +252,7 @@
 
 		await Promise.all(
 			targetUserIds.map(async (id) => {
-				const user = await getUserInfoById(localStorage.token, id).catch(() => null);
+				const user = await getUserInfoById(sessionStorage.token, id).catch(() => null);
 				if (user) {
 					selectedUsers = { ...selectedUsers, [id]: user };
 				}
@@ -263,7 +263,7 @@
 			targetGroupIds.map(async (id) => {
 				const group =
 					groups.find((group) => group.id === id) ??
-					(await getGroupInfoById(localStorage.token, id).catch(() => null));
+					(await getGroupInfoById(sessionStorage.token, id).catch(() => null));
 				if (group) {
 					selectedGroups = { ...selectedGroups, [id]: group };
 				}
@@ -284,7 +284,7 @@
 			.filter((group: any) => !targetGroupIds.includes(group.id))
 			.slice(0, 5);
 
-		const res = await searchUsers(localStorage.token, targetQuery, 'name', 'asc', 1).catch(
+		const res = await searchUsers(sessionStorage.token, targetQuery, 'name', 'asc', 1).catch(
 			() => null
 		);
 		targetUserResults = (res?.users ?? [])
@@ -342,9 +342,9 @@
 
 		try {
 			if (editing) {
-				await updateEventWebhook(localStorage.token, form.id, payload);
+				await updateEventWebhook(sessionStorage.token, form.id, payload);
 			} else {
-				await createEventWebhook(localStorage.token, payload);
+				await createEventWebhook(sessionStorage.token, payload);
 			}
 			await load();
 			resetForm();
@@ -360,7 +360,7 @@
 		}
 
 		try {
-			await deleteEventWebhook(localStorage.token, webhook.id);
+			await deleteEventWebhook(sessionStorage.token, webhook.id);
 			await load();
 			resetForm();
 			toast.success($i18n.t('Webhook deleted'));
@@ -374,7 +374,7 @@
 		webhooks = webhooks.map((item) => (item.id === webhook.id ? { ...item, enabled } : item));
 
 		try {
-			await updateEventWebhook(localStorage.token, webhook.id, { enabled });
+			await updateEventWebhook(sessionStorage.token, webhook.id, { enabled });
 		} catch (error) {
 			webhooks = webhooks.map((item) =>
 				item.id === webhook.id ? { ...item, enabled: previous } : item

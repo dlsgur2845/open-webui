@@ -43,7 +43,7 @@
 
 	const loadMemories = async () => {
 		loading = true;
-		memories = (await getMemories(localStorage.token)) ?? [];
+		memories = (await getMemories(sessionStorage.token)) ?? [];
 		loading = false;
 	};
 
@@ -79,7 +79,7 @@
 	);
 
 	let onClearConfirmed = async () => {
-		const res = await deleteMemoriesByUserId(localStorage.token).catch((error) => {
+		const res = await deleteMemoriesByUserId(sessionStorage.token).catch((error) => {
 			toast.error(`${error}`);
 			return null;
 		});
@@ -269,7 +269,7 @@
 	on:confirm={async () => {
 		if (!selectedMemory) return;
 
-		const res = await deleteMemoryById(localStorage.token, selectedMemory.id).catch((error) => {
+		const res = await deleteMemoryById(sessionStorage.token, selectedMemory.id).catch((error) => {
 			toast.error(`${error}`);
 			return null;
 		});

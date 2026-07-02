@@ -83,7 +83,7 @@
 
 	async function loadCalendars() {
 		try {
-			calendars = (await getCalendars(localStorage.token)) ?? [];
+			calendars = (await getCalendars(sessionStorage.token)) ?? [];
 			visibleCalendarIds = new Set(calendars.map((c) => c.id));
 		} catch (err) {
 			console.error('loadCalendars', err);
@@ -94,7 +94,7 @@
 	async function loadEvents() {
 		try {
 			const { start, end } = getVisibleRange();
-			events = await getCalendarEvents(localStorage.token, start, end);
+			events = await getCalendarEvents(sessionStorage.token, start, end);
 		} catch (err) {
 			toast.error(`${err}`);
 		}
@@ -116,7 +116,7 @@
 
 	async function handleDeleteCalendar(id: string) {
 		try {
-			const result = await deleteCalendar(localStorage.token, id);
+			const result = await deleteCalendar(sessionStorage.token, id);
 			if (result) {
 				toast.success($i18n.t('Calendar deleted'));
 				await loadCalendars();

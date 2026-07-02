@@ -21,7 +21,7 @@
 	let showEdit = false;
 
 	const updateHandler = async (_group) => {
-		const res = await updateGroupById(localStorage.token, group.id, _group).catch((error) => {
+		const res = await updateGroupById(sessionStorage.token, group.id, _group).catch((error) => {
 			toast.error(`${error}`);
 			return null;
 		});
@@ -33,7 +33,7 @@
 	};
 
 	const deleteHandler = async () => {
-		const res = await deleteGroupById(localStorage.token, group.id).catch((error) => {
+		const res = await deleteGroupById(sessionStorage.token, group.id).catch((error) => {
 			toast.error(`${error}`);
 			return null;
 		});

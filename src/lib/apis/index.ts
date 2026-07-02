@@ -442,7 +442,7 @@ export const getToolServersData = async (servers: object[]) => {
 					} else if (auth_type === 'none') {
 						// No authentication
 					} else if (auth_type === 'session') {
-						toolServerToken = localStorage.token;
+						toolServerToken = sessionStorage.token;
 					}
 
 					let res = null;

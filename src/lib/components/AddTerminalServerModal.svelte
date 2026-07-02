@@ -132,7 +132,7 @@
 		try {
 			if (!direct) {
 				// System connection: proxy through backend to avoid CORS / key exposure
-				const result = await verifyTerminalServerConnection(localStorage.token, {
+				const result = await verifyTerminalServerConnection(sessionStorage.token, {
 					url: _url,
 					key,
 					auth_type
@@ -230,7 +230,7 @@
 		refreshing = true;
 		try {
 			const result = await refreshOrchestratorTerminals(
-				localStorage.token,
+				sessionStorage.token,
 				url,
 				key,
 				{
@@ -273,9 +273,9 @@
 			lifecycleData = parsedLifecycle;
 
 			try {
-				await putOrchestratorPolicy(localStorage.token, url, key, policyId, policyData, auth_type);
+				await putOrchestratorPolicy(sessionStorage.token, url, key, policyId, policyData, auth_type);
 				await putOrchestratorLifecycle(
-					localStorage.token,
+					sessionStorage.token,
 					url,
 					key,
 					policyId,

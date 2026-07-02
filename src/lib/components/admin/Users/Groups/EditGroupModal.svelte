@@ -64,8 +64,8 @@
 			// For user groups: reset to current global default permissions
 			// For default permissions modal: reset to stock/env-var configuration
 			const defaults = custom
-				? await getUserDefaultPermissions(localStorage.token)
-				: await getUserDefaultPermissionsDefaults(localStorage.token);
+				? await getUserDefaultPermissions(sessionStorage.token)
+				: await getUserDefaultPermissionsDefaults(sessionStorage.token);
 			if (defaults) {
 				permissions = {
 					workspace: { ...DEFAULT_PERMISSIONS.workspace, ...defaults.workspace },

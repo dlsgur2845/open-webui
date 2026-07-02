@@ -29,7 +29,7 @@
 	const loadAccessGrants = async () => {
 		loading = true;
 		try {
-			const freshFolder = await getFolderById(localStorage.token, folder.id);
+			const freshFolder = await getFolderById(sessionStorage.token, folder.id);
 			if (freshFolder) {
 				accessGrants = freshFolder.access_grants ?? [];
 			}
@@ -44,7 +44,7 @@
 	const handleAccessChange = async () => {
 		if (!folder) return;
 		try {
-			const res = await updateFolderAccessById(localStorage.token, folder.id, accessGrants);
+			const res = await updateFolderAccessById(sessionStorage.token, folder.id, accessGrants);
 			if (res) {
 				accessGrants = res.access_grants ?? accessGrants;
 			}

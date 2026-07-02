@@ -47,7 +47,7 @@
 			loading = true;
 
 			const res = await addUser(
-				localStorage.token,
+				sessionStorage.token,
 				_user.name,
 				_user.email,
 				_user.password,
@@ -98,7 +98,7 @@
 						const results = await Promise.allSettled(
 							batch.map(({ idx, columns }) =>
 								addUser(
-									localStorage.token,
+									sessionStorage.token,
 									columns[0],
 									columns[1],
 									columns[2],

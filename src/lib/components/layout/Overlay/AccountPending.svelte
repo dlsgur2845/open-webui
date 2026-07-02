@@ -11,7 +11,7 @@
 	let adminDetails = null;
 
 	onMount(async () => {
-		adminDetails = await getAdminDetails(localStorage.token).catch((err) => {
+		adminDetails = await getAdminDetails(sessionStorage.token).catch((err) => {
 			console.error(err);
 			return null;
 		});

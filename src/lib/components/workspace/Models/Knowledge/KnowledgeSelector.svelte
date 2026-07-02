@@ -52,7 +52,7 @@
 	};
 
 	const getNoteItems = async () => {
-		const res = await searchNotes(localStorage.token, query).catch(() => {
+		const res = await searchNotes(sessionStorage.token, query).catch(() => {
 			return null;
 		});
 
@@ -69,7 +69,7 @@
 	};
 
 	const getKnowledgeItems = async () => {
-		const res = await searchKnowledgeBases(localStorage.token, query).catch(() => {
+		const res = await searchKnowledgeBases(sessionStorage.token, query).catch(() => {
 			return null;
 		});
 
@@ -84,7 +84,7 @@
 	};
 
 	const getKnowledgeFileItems = async () => {
-		const res = await searchKnowledgeFiles(localStorage.token, query).catch(() => {
+		const res = await searchKnowledgeFiles(sessionStorage.token, query).catch(() => {
 			return null;
 		});
 

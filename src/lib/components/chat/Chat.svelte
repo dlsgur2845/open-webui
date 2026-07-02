@@ -405,13 +405,13 @@
 
 		try {
 			if (!$tools) {
-				tools.set(await getTools(localStorage.token));
+				tools.set(await getTools(sessionStorage.token));
 			}
 			if (!$functions) {
-				functions.set(await getFunctions(localStorage.token));
+				functions.set(await getFunctions(sessionStorage.token));
 			}
 			if (!$skills) {
-				skills.set(await getSkills(localStorage.token));
+				skills.set(await getSkills(sessionStorage.token));
 			}
 			if (selectedModels.length !== 1 && !atSelectedModel) {
 				return;
@@ -697,10 +697,10 @@
 				} else if (type === 'chat:title') {
 					chatTitle.set(data);
 					currentChatPage.set(1);
-					await chats.set(await getChatList(localStorage.token, $currentChatPage));
+					await chats.set(await getChatList(sessionStorage.token, $currentChatPage));
 				} else if (type === 'chat:tags') {
-					chat = await getChatById(localStorage.token, $chatId);
-					allTags.set(await getAllTags(localStorage.token));
+					chat = await getChatById(sessionStorage.token, $chatId);
+					allTags.set(await getAllTags(sessionStorage.token));
 				} else if (type === 'source' || type === 'citation') {
 					if (data?.type === 'code_execution') {
 						// Code execution; update existing code execution by ID, or add new one.
@@ -876,7 +876,7 @@
 			selectedModels.filter((modelId) => modelId !== '').length > 0 &&
 			!equal($selectedFolder?.data?.model_ids, selectedModels)
 		) {
-			const res = await updateFolderById(localStorage.token, $selectedFolder.id, {
+			const res = await updateFolderById(sessionStorage.token, $selectedFolder.id, {
 				data: {
 					model_ids: selectedModels
 				}
@@ -910,7 +910,7 @@
 			return;
 		}
 
-		const pendingTaskIds = await getTaskIdsByChatId(localStorage.token, $chatId)
+		const pendingTaskIds = await getTaskIdsByChatId(sessionStorage.token, $chatId)
 			.then((res) => res?.task_ids ?? [])
 			.catch(() => null);
 
@@ -1149,7 +1149,7 @@
 
 			// Upload file to server
 			console.log('Uploading file to server...');
-			const uploadedFile = await uploadFile(localStorage.token, file, metadata);
+			const uploadedFile = await uploadFile(sessionStorage.token, file, metadata);
 
 			if (!uploadedFile) {
 				throw new Error('Server returned null response for file upload');
@@ -1205,8 +1205,8 @@
 		for (const fileItem of fileItems) {
 			try {
 				const res = isYoutubeUrl(fileItem.url)
-					? await processYoutubeVideo(localStorage.token, fileItem.url)
-					: await processWeb(localStorage.token, '', fileItem.url);
+					? await processYoutubeVideo(sessionStorage.token, fileItem.url)
+					: await processWeb(sessionStorage.token, '', fileItem.url);
 
 				if (res) {
 					fileItem.status = 'uploaded';
@@ -1591,13 +1591,13 @@
 			temporaryChatEnabled.set(false);
 		}
 
-		chat = await getChatById(localStorage.token, $chatId).catch(async (error) => {
+		chat = await getChatById(sessionStorage.token, $chatId).catch(async (error) => {
 			await goto('/');
 			return null;
 		});
 
 		if (chat) {
-			tags = await getTagsById(localStorage.token, $chatId).catch(async (error) => {
+			tags = await getTagsById(sessionStorage.token, $chatId).catch(async (error) => {
 				return [];
 			});
 
@@ -1655,7 +1655,7 @@
 				// If the response is already done, remaining tasks are just background
 				// work (follow-ups, title gen) that shouldn't block the input.
 				const activeTaskIds = taskIds;
-				const pendingTaskIds = await getTaskIdsByChatId(localStorage.token, $chatId)
+				const pendingTaskIds = await getTaskIdsByChatId(sessionStorage.token, $chatId)
 					.then((res) => res?.task_ids ?? [])
 					.catch(() => []);
 				if (taskIds !== activeTaskIds) {
@@ -1760,14 +1760,14 @@
 		// Just refresh the sidebar chat list.
 		if ($chatId == _chatId && !$temporaryChatEnabled) {
 			currentChatPage.set(1);
-			await chats.set(await getChatList(localStorage.token, $currentChatPage));
+			await chats.set(await getChatList(sessionStorage.token, $currentChatPage));
 		}
 	};
 
 	const chatActionHandler = async (_chatId, actionId, modelId, responseMessageId, event = null) => {
 		const messages = createMessagesList(history, responseMessageId);
 
-		const res = await chatAction(localStorage.token, actionId, {
+		const res = await chatAction(sessionStorage.token, actionId, {
 			model: modelId,
 			messages: messages.map((m) => ({
 				id: m.id,
@@ -1803,7 +1803,7 @@
 
 		if ($chatId == _chatId) {
 			if (!$temporaryChatEnabled) {
-				chat = await updateChatById(localStorage.token, _chatId, {
+				chat = await updateChatById(sessionStorage.token, _chatId, {
 					models: selectedModels,
 					messages: messages,
 					history: history,
@@ -1812,7 +1812,7 @@
 				});
 
 				currentChatPage.set(1);
-				await chats.set(await getChatList(localStorage.token, $currentChatPage));
+				await chats.set(await getChatList(sessionStorage.token, $currentChatPage));
 			}
 		}
 	};
@@ -2449,7 +2449,7 @@
 
 		let userLocation;
 		if ($settings?.userLocation) {
-			userLocation = await getAndUpdateUserLocation(localStorage.token).catch((err) => {
+			userLocation = await getAndUpdateUserLocation(sessionStorage.token).catch((err) => {
 				console.error(err);
 				return undefined;
 			});
@@ -2546,7 +2546,7 @@
 		const terminalEnabled = model.info?.meta?.capabilities?.terminal ?? true;
 
 		const res = await generateOpenAIChatCompletion(
-			localStorage.token,
+			sessionStorage.token,
 			{
 				stream: stream,
 				model: model.id,
@@ -2656,14 +2656,14 @@
 					if (!$temporaryChatEnabled) {
 						window.history.replaceState(history.state, '', `/c/${res.chat_id}`);
 						currentChatPage.set(1);
-						await chats.set(await getChatList(localStorage.token, $currentChatPage));
+						await chats.set(await getChatList(sessionStorage.token, $currentChatPage));
 
 						// Persist chat-level params (system prompt, advanced
 						// params) that the backend doesn't receive in the
 						// chat completion request.  Files are now persisted
 						// by the backend at chat creation time.
 						if (Object.keys(params).length > 0) {
-							await updateChatById(localStorage.token, res.chat_id, {
+							await updateChatById(sessionStorage.token, res.chat_id, {
 								params: params
 							});
 						}
@@ -2721,13 +2721,13 @@
 	const stopResponse = async (processQueue = true) => {
 		if (taskIds) {
 			if ($chatId) {
-				await stopTasksByChatId(localStorage.token, $chatId).catch((error) => {
+				await stopTasksByChatId(sessionStorage.token, $chatId).catch((error) => {
 					toast.error(`${error}`);
 					return null;
 				});
 			} else {
 				for (const taskId of taskIds) {
-					const res = await stopTask(localStorage.token, taskId).catch((error) => {
+					const res = await stopTask(sessionStorage.token, taskId).catch((error) => {
 						toast.error(`${error}`);
 						return null;
 					});
@@ -2867,7 +2867,7 @@
 		try {
 			generating = true;
 			const [res, controller] = await generateMoACompletion(
-				localStorage.token,
+				sessionStorage.token,
 				message.model ?? '',
 				message.parentId ? history.messages[message.parentId].content : '',
 				responses
@@ -2913,7 +2913,7 @@
 
 		if (!$temporaryChatEnabled) {
 			chat = await createNewChat(
-				localStorage.token,
+				sessionStorage.token,
 				{
 					id: _chatId,
 					title: $i18n.t('New Chat'),
@@ -2935,7 +2935,7 @@
 
 			await tick();
 
-			await chats.set(await getChatList(localStorage.token, $currentChatPage));
+			await chats.set(await getChatList(sessionStorage.token, $currentChatPage));
 			currentChatPage.set(1);
 
 			selectedFolder.set(null);
@@ -2951,7 +2951,7 @@
 	const saveChatHandler = async (_chatId, history) => {
 		if ($chatId == _chatId) {
 			if (!$temporaryChatEnabled) {
-				chat = await updateChatById(localStorage.token, _chatId, {
+				chat = await updateChatById(sessionStorage.token, _chatId, {
 					models: selectedModels,
 					history: history,
 					messages: createMessagesList(history, history.currentId),
@@ -2967,7 +2967,7 @@
 		const loaded = chat?.chat ?? {};
 		if (equal(params, loaded.params ?? {}) && equal(chatFiles, loaded.files ?? [])) return;
 
-		const res = await updateChatById(localStorage.token, $chatId, {
+		const res = await updateChatById(sessionStorage.token, $chatId, {
 			params,
 			files: chatFiles
 		}).catch((err) => {
@@ -3007,7 +3007,7 @@
 
 	const moveChatHandler = async (chatId, folderId) => {
 		if (chatId && folderId) {
-			const res = await updateChatFolderIdById(localStorage.token, chatId, folderId).catch(
+			const res = await updateChatFolderIdById(sessionStorage.token, chatId, folderId).catch(
 				(error) => {
 					toast.error(`${error}`);
 					return null;
@@ -3016,8 +3016,8 @@
 
 			if (res) {
 				currentChatPage.set(1);
-				await chats.set(await getChatList(localStorage.token, $currentChatPage));
-				await pinnedChats.set(await getPinnedChatList(localStorage.token));
+				await chats.set(await getChatList(sessionStorage.token, $currentChatPage));
+				await pinnedChats.set(await getPinnedChatList(sessionStorage.token));
 
 				toast.success($i18n.t('Chat moved successfully'));
 			}
@@ -3028,12 +3028,12 @@
 
 	const archiveChatHandler = async (id: string) => {
 		try {
-			await archiveChatById(localStorage.token, id);
+			await archiveChatById(sessionStorage.token, id);
 			currentChatPage.set(1);
 			initNewChat();
 			await goto('/');
-			chats.set(await getChatList(localStorage.token, $currentChatPage));
-			pinnedChats.set(await getPinnedChatList(localStorage.token));
+			chats.set(await getChatList(sessionStorage.token, $currentChatPage));
+			pinnedChats.set(await getPinnedChatList(sessionStorage.token));
 			toast.success($i18n.t('Chat archived.'));
 		} catch (error) {
 			console.error('Error archiving chat:', error);
@@ -3064,14 +3064,14 @@
 		if (!id) return;
 
 		try {
-			const res = await deleteChatById(localStorage.token, id);
+			const res = await deleteChatById(sessionStorage.token, id);
 			if (res) {
 				currentChatPage.set(1);
 				initNewChat();
 				await goto('/');
-				chats.set(await getChatList(localStorage.token, $currentChatPage));
-				pinnedChats.set(await getPinnedChatList(localStorage.token));
-				allTags.set(await getAllTags(localStorage.token));
+				chats.set(await getChatList(sessionStorage.token, $currentChatPage));
+				pinnedChats.set(await getPinnedChatList(sessionStorage.token));
+				allTags.set(await getAllTags(sessionStorage.token));
 				toast.success($i18n.t('Chat deleted.'));
 			}
 		} catch (error) {
@@ -3209,7 +3209,7 @@
 									messages.find((m) => m.role === 'user')?.content ?? $i18n.t('New Chat');
 
 								const savedChat = await createNewChat(
-									localStorage.token,
+									sessionStorage.token,
 									{
 										id: uuidv4(),
 										title: title.length > 50 ? `${title.slice(0, 50)}...` : title,
@@ -3225,7 +3225,7 @@
 								if (savedChat) {
 									temporaryChatEnabled.set(false);
 									chatId.set(savedChat.id);
-									chats.set(await getChatList(localStorage.token, $currentChatPage));
+									chats.set(await getChatList(sessionStorage.token, $currentChatPage));
 
 									await goto(`/c/${savedChat.id}`);
 									toast.success($i18n.t('Conversation saved successfully'));

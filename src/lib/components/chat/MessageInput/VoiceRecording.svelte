@@ -184,7 +184,7 @@
 			}
 
 			const res = await transcribeAudio(
-				localStorage.token,
+				sessionStorage.token,
 				file,
 				$settings?.audio?.stt?.language
 			).catch((error) => {

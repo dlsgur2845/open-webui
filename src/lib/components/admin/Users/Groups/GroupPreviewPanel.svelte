@@ -19,7 +19,7 @@
 		loading = true;
 		error = '';
 		try {
-			preview = await getGroupPreview(localStorage.token, groupId);
+			preview = await getGroupPreview(sessionStorage.token, groupId);
 		} catch (e) {
 			error = String(e);
 		} finally {

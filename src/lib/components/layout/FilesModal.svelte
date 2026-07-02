@@ -68,12 +68,12 @@
 
 		try {
 			const pattern = query ? `*${query}*` : '*';
-			const newFiles = await searchFiles(localStorage.token, pattern, 0, PAGE_SIZE);
+			const newFiles = await searchFiles(sessionStorage.token, pattern, 0, PAGE_SIZE);
 			files = sortFiles(newFiles);
 			allFilesLoaded = newFiles.length < PAGE_SIZE;
 
 			if (!query) {
-				fileCount = await getFileCount(localStorage.token);
+				fileCount = await getFileCount(sessionStorage.token);
 			}
 		} catch (error) {
 			// Handle 404 or other errors - show empty state instead of spinner
@@ -90,7 +90,7 @@
 
 		try {
 			const pattern = query ? `*${query}*` : '*';
-			const newFiles = await searchFiles(localStorage.token, pattern, page * PAGE_SIZE, PAGE_SIZE);
+			const newFiles = await searchFiles(sessionStorage.token, pattern, page * PAGE_SIZE, PAGE_SIZE);
 
 			allFilesLoaded = newFiles.length < PAGE_SIZE;
 
@@ -125,7 +125,7 @@
 
 	const deleteHandler = async (fileId: string) => {
 		try {
-			await deleteFileById(localStorage.token, fileId);
+			await deleteFileById(sessionStorage.token, fileId);
 			toast.success($i18n.t('File deleted successfully.'));
 			// Remove from local array instead of re-fetching to allow rapid deletion
 			files = files?.filter((f) => f.id !== fileId) ?? null;

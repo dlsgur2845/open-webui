@@ -198,7 +198,7 @@ class Tools:
 	onChange={async () => {
 		if (edit && id) {
 			try {
-				await updateToolAccessGrants(localStorage.token, id, accessGrants);
+				await updateToolAccessGrants(sessionStorage.token, id, accessGrants);
 				toast.success($i18n.t('Saved'));
 			} catch (error) {
 				toast.error(`${error}`);

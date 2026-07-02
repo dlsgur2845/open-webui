@@ -44,7 +44,7 @@
 
 		loading = true;
 		try {
-			const result = await createCalendar(localStorage.token, {
+			const result = await createCalendar(sessionStorage.token, {
 				name: name.trim(),
 				color
 			});

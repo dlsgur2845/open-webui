@@ -1,32 +1,28 @@
 services:
-  ollama:
-    volumes:
-      - ollama:/root/.ollama
-    container_name: ollama
-    pull_policy: always
-    tty: true
-    restart: unless-stopped
-    image: ollama/ollama:${OLLAMA_DOCKER_TAG-latest}
-
   open-webui:
     build:
       context: .
       dockerfile: Dockerfile
-    image: ghcr.io/open-webui/open-webui:${WEBUI_DOCKER_TAG-main}
+    image: ax/open-webui:0.10.2-fix1-AppleSilicon
     container_name: open-webui
     volumes:
       - open-webui:/app/backend/data
-    depends_on:
-      - ollama
     ports:
       - ${OPEN_WEBUI_PORT-3000}:8080
     environment:
-      - 'OLLAMA_BASE_URL=http://ollama:11434'
+      - 'JWT_EXPIRES_IN=24h'
       - 'WEBUI_SECRET_KEY='
+      - 'DISABLE_ADMIN=false'
+      - 'CHAT_DELETE_ENABLED=true'
+      - 'CHAT_DELETE_DAYS=1'
+      - 'ENABLE_PASSWORD_VALIDATION=true'
+      - 'PASSWORD_BLACKLIST=kftc,admin'
+      - 'ENABLE_IMAGE_CAPTURE=true'
+      - 'ENABLE_WEBPAGE_ATTACHMENT=false'
+      - 'ENABLE_USER_PERSONAL_INFO=false'
     extra_hosts:
       - host.docker.internal:host-gateway
     restart: unless-stopped
 
 volumes:
-  ollama: {}
   open-webui: {}

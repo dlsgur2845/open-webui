@@ -76,7 +76,7 @@
 
 	const init = async () => {
 		if ($_tools === null) {
-			await _tools.set(await getTools(localStorage.token));
+			await _tools.set(await getTools(sessionStorage.token));
 		}
 
 		if ($_tools) {
@@ -107,7 +107,7 @@
 		selectedToolIds = selectedToolIds.filter((id) => Object.keys(tools).includes(id));
 
 		if ($_skills === null) {
-			await _skills.set(await getSkills(localStorage.token));
+			await _skills.set(await getSkills(sessionStorage.token));
 		}
 
 		if ($_skills) {
@@ -450,11 +450,11 @@
 												const provider = `mcp:${serverId}`;
 
 												try {
-													await deleteOAuthSession(localStorage.token, provider);
+													await deleteOAuthSession(sessionStorage.token, provider);
 													toast.success($i18n.t('OAuth session disconnected'));
 
 													// Refresh tools to update authenticated state
-													_tools.set(await getTools(localStorage.token));
+													_tools.set(await getTools(sessionStorage.token));
 													selectedToolIds = selectedToolIds.filter((id) => id !== toolId);
 													await init();
 												} catch (err) {

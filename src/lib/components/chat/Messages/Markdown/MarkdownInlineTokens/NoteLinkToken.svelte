@@ -16,13 +16,13 @@
 
 	onMount(async () => {
 		try {
-			const note = await getNoteById(localStorage.token, noteId);
+			const note = await getNoteById(sessionStorage.token, noteId);
 			if (note) {
 				title = note.title || $i18n.t('Untitled');
 
 				if (note.user_id) {
 					try {
-						const userInfo = await getUserInfoById(localStorage.token, note.user_id);
+						const userInfo = await getUserInfoById(sessionStorage.token, note.user_id);
 						if (userInfo) {
 							author = capitalizeFirstLetter(userInfo.name ?? userInfo.email ?? '');
 						}

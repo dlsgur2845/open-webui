@@ -195,7 +195,7 @@
 		}
 
 		const res = await searchKnowledgeFilesById(
-			localStorage.token,
+			sessionStorage.token,
 			knowledge.id,
 			query,
 			viewOption,
@@ -216,7 +216,7 @@
 
 			// Merge in-flight files not yet linked to the knowledge base
 			try {
-				const pendingFiles = await getPendingKnowledgeFiles(localStorage.token, knowledgeId);
+				const pendingFiles = await getPendingKnowledgeFiles(sessionStorage.token, knowledgeId);
 				if (pendingFiles && pendingFiles.length > 0) {
 					const existingIds = new Set(fileItems.map((f) => f.id));
 					const newPending = pendingFiles
@@ -233,7 +233,7 @@
 						if (!pendingPollTimer) {
 							pendingPollTimer = setInterval(async () => {
 								try {
-									const still = await getPendingKnowledgeFiles(localStorage.token, knowledgeId);
+									const still = await getPendingKnowledgeFiles(sessionStorage.token, knowledgeId);
 									if (!still || still.length === 0) {
 										clearInterval(pendingPollTimer);
 										pendingPollTimer = null;
@@ -263,7 +263,7 @@
 
 		loadingFileContent = true;
 		try {
-			const fileWithContent = await getFileById(localStorage.token, file.id);
+			const fileWithContent = await getFileById(sessionStorage.token, file.id);
 			if (selectedFileId === file.id) {
 				selectedFile = fileWithContent ?? file;
 				selectedFileContent = fileWithContent?.data?.content ?? '';
@@ -283,7 +283,7 @@
 		if (!isExternalKnowledge || !externalTestQuery.trim()) return;
 
 		const external = knowledge?.meta?.external ?? {};
-		const res = await testExternalKnowledgeRetrieval(localStorage.token, external.connection_id, {
+		const res = await testExternalKnowledgeRetrieval(sessionStorage.token, external.connection_id, {
 			query: externalTestQuery,
 			source: external.source,
 			count: 5
@@ -328,7 +328,7 @@
 		for (const fileItem of newFileItems) {
 			try {
 				console.log(fileItem);
-				const res = await processWeb(localStorage.token, '', fileItem.url, false).catch((e) => {
+				const res = await processWeb(sessionStorage.token, '', fileItem.url, false).catch((e) => {
 					console.error('Error processing web URL:', e);
 					return null;
 				});
@@ -344,7 +344,7 @@
 						res.content
 					);
 
-					const uploadedFile = await uploadFile(localStorage.token, file, {
+					const uploadedFile = await uploadFile(sessionStorage.token, file, {
 						knowledge_id: knowledge.id,
 						directory_id: currentDirectoryId
 					}).catch((e) => {
@@ -435,7 +435,7 @@
 					: {})
 			};
 
-			const uploadedFile = await uploadFile(localStorage.token, file, metadata).catch((e) => {
+			const uploadedFile = await uploadFile(sessionStorage.token, file, metadata).catch((e) => {
 				toast.error(`${e}`);
 				return null;
 			});
@@ -583,7 +583,7 @@
 			const parentId = parentPath ? directoryIdByPath[parentPath] : null;
 
 			const directory = await createKnowledgeDirectory(
-				localStorage.token,
+				sessionStorage.token,
 				knowledge.id,
 				name,
 				parentId
@@ -610,7 +610,7 @@
 
 			syncing = $i18n.t('Comparing with knowledge base...');
 			const diff = await syncKnowledgeDiff(
-				localStorage.token,
+				sessionStorage.token,
 				id,
 				manifest.map(({ filename, path, checksum, size }) => ({
 					filename,
@@ -638,7 +638,7 @@
 				});
 
 				const fileObject = new File([entry.file], entry.filename, { type: entry.file.type });
-				await uploadFile(localStorage.token, fileObject, {
+				await uploadFile(sessionStorage.token, fileObject, {
 					knowledge_id: knowledge.id,
 					file_hash: entry.checksum,
 					directory_id: entry.path
@@ -674,7 +674,7 @@
 			// ── 3. Diff against knowledge base ──
 			syncing = $i18n.t('Comparing with knowledge base...');
 			const diff = await syncKnowledgeDiff(
-				localStorage.token,
+				sessionStorage.token,
 				id,
 				manifest.map(({ filename, path, checksum, size }) => ({ filename, path, checksum, size }))
 			);
@@ -692,7 +692,7 @@
 
 			if (staleFileIds.length > 0 || diff.rmdir.length > 0) {
 				syncing = $i18n.t('Removing {{count}} stale files...', { count: staleFileIds.length });
-				await syncKnowledgeCleanup(localStorage.token, id, staleFileIds, diff.rmdir);
+				await syncKnowledgeCleanup(sessionStorage.token, id, staleFileIds, diff.rmdir);
 			}
 
 			// ── 5. mkdir — create missing directories (parents first) ──
@@ -716,7 +716,7 @@
 				});
 
 				const fileObject = new File([entry.file], entry.filename, { type: entry.file.type });
-				await uploadFile(localStorage.token, fileObject, {
+				await uploadFile(sessionStorage.token, fileObject, {
 					knowledge_id: knowledge.id,
 					file_hash: entry.checksum,
 					directory_id: entry.path ? directoryIdByPath[entry.path] : null
@@ -745,7 +745,7 @@
 
 	const addFileHandler = async (fileId) => {
 		const res = await addFileToKnowledgeById(
-			localStorage.token,
+			sessionStorage.token,
 			id,
 			fileId,
 			currentDirectoryId
@@ -776,7 +776,7 @@
 
 	const createDirectoryHandler = async (name: string) => {
 		const res = await createKnowledgeDirectory(
-			localStorage.token,
+			sessionStorage.token,
 			knowledge.id,
 			name,
 			currentDirectoryId
@@ -792,7 +792,7 @@
 	};
 
 	const renameDirectoryHandler = async (dirId: string, name: string) => {
-		const res = await updateKnowledgeDirectory(localStorage.token, knowledge.id, dirId, {
+		const res = await updateKnowledgeDirectory(sessionStorage.token, knowledge.id, dirId, {
 			name
 		}).catch((e) => {
 			toast.error(`${e}`);
@@ -814,7 +814,7 @@
 		if (!pendingDeleteDirectoryId) return;
 
 		const res = await deleteKnowledgeDirectory(
-			localStorage.token,
+			sessionStorage.token,
 			knowledge.id,
 			pendingDeleteDirectoryId,
 			moveFiles
@@ -832,7 +832,7 @@
 
 	const moveFileToDirectoryHandler = async (fileId: string, directoryId: string | null) => {
 		const res = await moveFileInKnowledge(
-			localStorage.token,
+			sessionStorage.token,
 			knowledge.id,
 			fileId,
 			directoryId
@@ -849,7 +849,7 @@
 
 	const moveDirectoryHandler = async (dirId: string, targetParentId: string | null) => {
 		if (dirId === targetParentId) return;
-		const res = await updateKnowledgeDirectory(localStorage.token, knowledge.id, dirId, {
+		const res = await updateKnowledgeDirectory(sessionStorage.token, knowledge.id, dirId, {
 			parent_id: targetParentId
 		}).catch((e) => {
 			toast.error(`${e}`);
@@ -867,7 +867,7 @@
 			console.log('Starting file deletion process for:', fileId);
 
 			// Remove from knowledge base only
-			const res = await removeFileFromKnowledgeById(localStorage.token, id, fileId);
+			const res = await removeFileFromKnowledgeById(sessionStorage.token, id, fileId);
 			console.log('Knowledge base updated:', res);
 
 			if (res) {
@@ -882,7 +882,7 @@
 
 	const renameFileHandler = async (fileId: string, name: string) => {
 		try {
-			const res = await renameFileById(localStorage.token, fileId, name);
+			const res = await renameFileById(sessionStorage.token, fileId, name);
 			if (res) {
 				toast.success($i18n.t('File renamed.'));
 				getItemsPage();
@@ -907,7 +907,7 @@
 
 		try {
 			const res = await updateFileDataContentById(
-				localStorage.token,
+				sessionStorage.token,
 				selectedFile.id,
 				selectedFileContent
 			).catch((e) => {
@@ -941,7 +941,7 @@
 				return;
 			}
 
-			const res = await updateKnowledgeById(localStorage.token, id, {
+			const res = await updateKnowledgeById(sessionStorage.token, id, {
 				...knowledge,
 				name: knowledge.name,
 				description: knowledge.description,
@@ -1109,7 +1109,7 @@
 		}
 
 		id = $page.params.id;
-		const res = await getKnowledgeById(localStorage.token, id).catch((e) => {
+		const res = await getKnowledgeById(sessionStorage.token, id).catch((e) => {
 			toast.error(`${e}`);
 			return null;
 		});
@@ -1224,7 +1224,7 @@
 				$user?.role === 'admin'}
 			onChange={async () => {
 				try {
-					await updateKnowledgeAccessGrants(localStorage.token, id, knowledge.access_grants ?? []);
+					await updateKnowledgeAccessGrants(sessionStorage.token, id, knowledge.access_grants ?? []);
 					toast.success($i18n.t('Saved'));
 				} catch (error) {
 					toast.error(`${error}`);
@@ -1715,7 +1715,7 @@
 	bind:show={showResetConfirm}
 	title={$i18n.t('Reset knowledge base?')}
 	on:confirm={async () => {
-		await resetKnowledgeById(localStorage.token, id);
+		await resetKnowledgeById(sessionStorage.token, id);
 		toast.success($i18n.t('Knowledge base has been reset'));
 		init();
 	}}

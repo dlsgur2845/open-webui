@@ -182,11 +182,11 @@
 	const refresh = async () => {
 		loading = true;
 		const [connectionRes, knowledgeRes] = await Promise.all([
-			getExternalKnowledgeConnections(localStorage.token).catch((error) => {
+			getExternalKnowledgeConnections(sessionStorage.token).catch((error) => {
 				toast.error(`${error}`);
 				return null;
 			}),
-			searchKnowledgeBases(localStorage.token, null, null, 1, 'external').catch((error) => {
+			searchKnowledgeBases(sessionStorage.token, null, null, 1, 'external').catch((error) => {
 				toast.error(`${error}`);
 				return null;
 			})
@@ -277,7 +277,7 @@
 
 		testing = true;
 		testResult = null;
-		const res = await testExternalKnowledgeSource(localStorage.token, {
+		const res = await testExternalKnowledgeSource(sessionStorage.token, {
 			...(editingConnection?.id ? { connection_id: editingConnection.id } : {}),
 			connection: connectionPayload(),
 			source: sourcePayload(),
@@ -309,7 +309,7 @@
 		}
 
 		creating = true;
-		const res = await createExternalKnowledgeSource(localStorage.token, {
+		const res = await createExternalKnowledgeSource(sessionStorage.token, {
 			name: sourceForm.name,
 			description: sourceForm.description,
 			connection: connectionPayload(),
@@ -345,7 +345,7 @@
 		}
 
 		creating = true;
-		const res = await updateExternalKnowledgeSource(localStorage.token, editingItem.id, {
+		const res = await updateExternalKnowledgeSource(sessionStorage.token, editingItem.id, {
 			name: sourceForm.name,
 			description: sourceForm.description,
 			connection: connectionPayload(),
@@ -379,7 +379,7 @@
 		const connection = connectionForItem(item);
 		if (!connection) return;
 
-		const res = await updateExternalKnowledgeConnection(localStorage.token, connection.id, {
+		const res = await updateExternalKnowledgeConnection(sessionStorage.token, connection.id, {
 			name: connection.name,
 			provider: connection.provider,
 			endpoint: connection.endpoint,

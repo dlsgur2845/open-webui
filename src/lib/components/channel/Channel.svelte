@@ -114,12 +114,12 @@
 		typingUsers = [];
 		typingUsersTimeout = {};
 
-		channel = await getChannelById(localStorage.token, id).catch((error) => {
+		channel = await getChannelById(sessionStorage.token, id).catch((error) => {
 			return null;
 		});
 
 		if (channel) {
-			messages = await getChannelMessages(localStorage.token, id, 0);
+			messages = await getChannelMessages(sessionStorage.token, id, 0);
 
 			if (messages) {
 				scrollToBottom();
@@ -236,7 +236,7 @@
 			...messages
 		];
 
-		const res = await sendMessage(localStorage.token, id, message).catch((error) => {
+		const res = await sendMessage(sessionStorage.token, id, message).catch((error) => {
 			toast.error(`${error}`);
 			return null;
 		});
@@ -328,7 +328,7 @@
 				{channel}
 				onPin={pinHandler}
 				onUpdate={async () => {
-					channel = await getChannelById(localStorage.token, id).catch((error) => {
+					channel = await getChannelById(sessionStorage.token, id).catch((error) => {
 						return null;
 					});
 				}}
@@ -361,7 +361,7 @@
 								onPin={pinHandler}
 								onLoad={async () => {
 									const newMessages = await getChannelMessages(
-										localStorage.token,
+										sessionStorage.token,
 										id,
 										messages.length
 									);

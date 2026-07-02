@@ -37,7 +37,7 @@
 	const loadChats = async () => {
 		loading = true;
 		try {
-			const res = await getSharedFolderChats(localStorage.token, folder.id);
+			const res = await getSharedFolderChats(sessionStorage.token, folder.id);
 			if (res) {
 				chats = res.chats || [];
 			}

@@ -138,13 +138,13 @@
 
 	const loadSuggestionTags = async () => {
 		const res: string[] = await (preset ? getModelTags : getBaseModelTags)(
-			localStorage.token
+			sessionStorage.token
 		).catch(() => []);
 		suggestionTags = res.map((tag) => ({ name: tag }));
 	};
 
 	const loadVoices = async () => {
-		const res = await getVoices(localStorage.token).catch(() => null);
+		const res = await getVoices(sessionStorage.token).catch(() => null);
 		voices = res?.voices ?? [];
 	};
 
@@ -297,11 +297,11 @@
 
 	onMount(async () => {
 		if (!$tools) {
-			await tools.set(await getTools(localStorage.token));
+			await tools.set(await getTools(sessionStorage.token));
 		}
-		skillsList = (await getSkills(localStorage.token).catch(() => null)) ?? [];
+		skillsList = (await getSkills(sessionStorage.token).catch(() => null)) ?? [];
 		if (!$functions) {
-			await functions.set(await getFunctions(localStorage.token));
+			await functions.set(await getFunctions(sessionStorage.token));
 		}
 		if (suggestionTags.length === 0) {
 			await loadSuggestionTags();
@@ -312,7 +312,7 @@
 
 		// Fetch admin-configured default model metadata so the editor
 		// reflects the actual defaults rather than hardcoded values
-		const modelsConfig = await getModelsDefaults(localStorage.token).catch(() => null);
+		const modelsConfig = await getModelsDefaults(sessionStorage.token).catch(() => null);
 		const defaultMeta = modelsConfig?.DEFAULT_MODEL_METADATA ?? {};
 
 		// Use admin defaults as base, falling back to hardcoded defaults

@@ -53,7 +53,7 @@
 		name = name.trim();
 		folder.name = name;
 
-		const res = await updateFolderById(localStorage.token, folder.id, {
+		const res = await updateFolderById(sessionStorage.token, folder.id, {
 			name,
 			...(meta ? { meta } : {}),
 			...(data ? { data } : {})
@@ -72,7 +72,7 @@
 
 			toast.success($i18n.t('Folder updated successfully'));
 
-			const _folder = await getFolderById(localStorage.token, folder.id).catch((error) => {
+			const _folder = await getFolderById(sessionStorage.token, folder.id).catch((error) => {
 				toast.error(`${error}`);
 				return null;
 			});
@@ -83,7 +83,7 @@
 	};
 
 	const updateIconHandler = async (iconName) => {
-		const res = await updateFolderById(localStorage.token, folder.id, {
+		const res = await updateFolderById(sessionStorage.token, folder.id, {
 			meta: {
 				icon: iconName ?? ''
 			}
@@ -97,7 +97,7 @@
 
 			toast.success($i18n.t('Folder updated successfully'));
 
-			const _folder = await getFolderById(localStorage.token, folder.id).catch((error) => {
+			const _folder = await getFolderById(sessionStorage.token, folder.id).catch((error) => {
 				toast.error(`${error}`);
 				return null;
 			});
@@ -108,7 +108,7 @@
 	};
 
 	const deleteHandler = async () => {
-		const res = await deleteFolderById(localStorage.token, folder.id, deleteFolderContents).catch(
+		const res = await deleteFolderById(sessionStorage.token, folder.id, deleteFolderContents).catch(
 			(error) => {
 				toast.error(`${error}`);
 				return null;
@@ -122,7 +122,7 @@
 	};
 
 	const exportHandler = async () => {
-		const chats = await getChatsByFolderId(localStorage.token, folder.id).catch((error) => {
+		const chats = await getChatsByFolderId(sessionStorage.token, folder.id).catch((error) => {
 			toast.error(`${error}`);
 			return null;
 		});
@@ -145,7 +145,7 @@
 
 		name = name.trim();
 
-		const res = await createNewFolder(localStorage.token, {
+		const res = await createNewFolder(sessionStorage.token, {
 			name,
 			data,
 			meta,

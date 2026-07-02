@@ -88,7 +88,7 @@
 				? JSON.parse(webConfig.LINKUP_SEARCH_PARAMS)
 				: (webConfig.LINKUP_SEARCH_PARAMS ?? {});
 
-		const res = await updateRAGConfig(localStorage.token, {
+		const res = await updateRAGConfig(sessionStorage.token, {
 			web: { ...webConfig, LINKUP_SEARCH_PARAMS: linkupParams }
 		});
 
@@ -102,7 +102,7 @@
 	};
 
 	onMount(async () => {
-		const res = await getRAGConfig(localStorage.token);
+		const res = await getRAGConfig(sessionStorage.token);
 
 		if (res) {
 			webConfig = res.web;

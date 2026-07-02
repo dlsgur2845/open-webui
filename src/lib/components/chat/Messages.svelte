@@ -168,7 +168,7 @@
 		if (!$temporaryChatEnabled) {
 			history = history;
 			await tick();
-			const res = await updateChatById(localStorage.token, chatId, {
+			const res = await updateChatById(sessionStorage.token, chatId, {
 				history: history,
 				messages: messages
 			});
@@ -184,7 +184,7 @@
 			}
 
 			currentChatPage.set(1);
-			await chats.set(await getChatList(localStorage.token, $currentChatPage));
+			await chats.set(await getChatList(sessionStorage.token, $currentChatPage));
 		}
 	};
 
@@ -479,13 +479,13 @@
 		history = history;
 
 		if (!$temporaryChatEnabled) {
-			const res = await deleteChatMessageById(localStorage.token, chatId, messageId);
+			const res = await deleteChatMessageById(sessionStorage.token, chatId, messageId);
 			if (res?.chat?.history) {
 				history = res.chat.history;
 			}
 
 			currentChatPage.set(1);
-			await chats.set(await getChatList(localStorage.token, $currentChatPage));
+			await chats.set(await getChatList(sessionStorage.token, $currentChatPage));
 		}
 	};
 

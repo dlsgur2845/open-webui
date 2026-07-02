@@ -101,7 +101,7 @@
 	const getItemsPage = async () => {
 		itemsLoading = true;
 		const res = await searchKnowledgeBases(
-			localStorage.token,
+			sessionStorage.token,
 			query,
 			viewOption,
 			page,
@@ -137,7 +137,7 @@
 	const deleteHandler = async (item: KnowledgeListItem | null) => {
 		if (!item) return;
 
-		const res = await deleteKnowledgeById(localStorage.token, item.id).catch((e) => {
+		const res = await deleteKnowledgeById(sessionStorage.token, item.id).catch((e) => {
 			toast.error(`${e}`);
 		});
 
@@ -149,7 +149,7 @@
 
 	const exportHandler = async (item: KnowledgeListItem) => {
 		try {
-			const blob = await exportKnowledgeById(localStorage.token, item.id);
+			const blob = await exportKnowledgeById(sessionStorage.token, item.id);
 			if (blob) {
 				const url = URL.createObjectURL(blob);
 				const a = document.createElement('a');

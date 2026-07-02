@@ -82,7 +82,7 @@
 
 	const downloadHandler = async (type) => {
 		// Fetch the full note since the list response may not contain full content
-		const note = await getNoteById(localStorage.token, selectedNote.id).catch((error) => {
+		const note = await getNoteById(sessionStorage.token, selectedNote.id).catch((error) => {
 			toast.error(`${error}`);
 			return null;
 		});
@@ -105,13 +105,13 @@
 	};
 
 	const deleteNoteHandler = async (id) => {
-		const res = await deleteNoteById(localStorage.token, id).catch((error) => {
+		const res = await deleteNoteById(sessionStorage.token, id).catch((error) => {
 			toast.error(`${error}`);
 			return null;
 		});
 
 		if (res) {
-			pinnedNotes.set(await getPinnedNoteList(localStorage.token).catch(() => []));
+			pinnedNotes.set(await getPinnedNoteList(sessionStorage.token).catch(() => []));
 			init();
 		}
 	};
@@ -136,7 +136,7 @@
 				}
 
 				// Create a new note with the content
-				const res = await createNewNote(localStorage.token, {
+				const res = await createNewNote(sessionStorage.token, {
 					title: name,
 					data: {
 						content: {
@@ -202,7 +202,7 @@
 		}
 
 		const res = await searchNotes(
-			localStorage.token,
+			sessionStorage.token,
 			query,
 			viewOption,
 			permission,
@@ -547,9 +547,9 @@
 																		}}
 																		isPinned={note.is_pinned ?? false}
 																		onPin={async () => {
-																			await toggleNotePinnedStatusById(localStorage.token, note.id);
+																			await toggleNotePinnedStatusById(sessionStorage.token, note.id);
 																			pinnedNotes.set(
-																				await getPinnedNoteList(localStorage.token).catch(() => [])
+																				await getPinnedNoteList(sessionStorage.token).catch(() => [])
 																			);
 																			init();
 																		}}
@@ -617,9 +617,9 @@
 																		}}
 																		isPinned={note.is_pinned ?? false}
 																		onPin={async () => {
-																			await toggleNotePinnedStatusById(localStorage.token, note.id);
+																			await toggleNotePinnedStatusById(sessionStorage.token, note.id);
 																			pinnedNotes.set(
-																				await getPinnedNoteList(localStorage.token).catch(() => [])
+																				await getPinnedNoteList(sessionStorage.token).catch(() => [])
 																			);
 																			init();
 																		}}

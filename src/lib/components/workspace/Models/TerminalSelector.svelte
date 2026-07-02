@@ -9,7 +9,7 @@
 	let terminals: TerminalServer[] = [];
 
 	onMount(async () => {
-		terminals = await getTerminalServers(localStorage.token);
+		terminals = await getTerminalServers(sessionStorage.token);
 	});
 </script>
 

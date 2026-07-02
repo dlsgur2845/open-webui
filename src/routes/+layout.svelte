@@ -131,7 +131,7 @@
 			randomizationFactor: 0.5,
 			path: '/ws/socket.io',
 			transports: enableWebsocket ? ['websocket'] : ['polling', 'websocket'],
-			auth: { token: localStorage.token }
+			auth: { token: sessionStorage.token }
 		});
 		await socket.set(_socket);
 
@@ -160,7 +160,7 @@
 			}
 			hasConnectedOnce = true;
 
-			const res = await getVersion(localStorage.token);
+			const res = await getVersion(sessionStorage.token);
 
 			const deploymentId = res?.deployment_id ?? null;
 			const version = res?.version ?? null;
@@ -195,9 +195,9 @@
 
 			console.log('version', version);
 
-			if (localStorage.getItem('token')) {
+			if (sessionStorage.getItem('token')) {
 				// Emit user-join event with auth token
-				_socket.emit('user-join', { auth: { token: localStorage.token } });
+				_socket.emit('user-join', { auth: { token: sessionStorage.token } });
 			} else {
 				console.warn('No token found in localStorage, user-join event not emitted');
 			}
@@ -415,7 +415,7 @@
 		if (toolServer) {
 			const auth_type = toolServer?.auth_type ?? 'bearer';
 			if (auth_type === 'bearer') token = toolServer?.key;
-			else if (auth_type === 'session') token = localStorage.token;
+			else if (auth_type === 'session') token = sessionStorage.token;
 		}
 
 		return { toolServer, toolServerData, token };
@@ -659,9 +659,9 @@
 				}
 			} else if (type === 'chat:title') {
 				currentChatPage.set(1);
-				await chats.set(await getChatList(localStorage.token, $currentChatPage));
+				await chats.set(await getChatList(sessionStorage.token, $currentChatPage));
 			} else if (type === 'chat:tags') {
-				tags.set(await getAllTags(localStorage.token));
+				tags.set(await getAllTags(sessionStorage.token));
 			}
 		}
 	};
@@ -674,7 +674,7 @@
 
 		// handle channel created event
 		if (event.data?.type === 'channel:created') {
-			const res = await getChannels(localStorage.token).catch(async (error) => {
+			const res = await getChannels(sessionStorage.token).catch(async (error) => {
 				return null;
 			});
 
@@ -725,7 +725,7 @@
 						})
 					);
 				} else {
-					const res = await getChannels(localStorage.token).catch(async (error) => {
+					const res = await getChannels(sessionStorage.token).catch(async (error) => {
 						return null;
 					});
 
@@ -823,7 +823,7 @@
 			method: 'GET',
 			headers: {
 				'Content-Type': 'application/json',
-				Authorization: `Bearer ${localStorage.token}`
+				Authorization: `Bearer ${sessionStorage.token}`
 			},
 			credentials: 'include'
 		})
@@ -890,7 +890,7 @@
 			return;
 		}
 		if (event.type === 'models:refresh') {
-			const token = localStorage.token;
+			const token = sessionStorage.token;
 			if (token) {
 				models.set(
 					await getModels(
@@ -904,7 +904,7 @@
 			return;
 		}
 
-		const token = localStorage.token;
+		const token = sessionStorage.token;
 		if (!token) return;
 
 		// Only admins can modify system-level connections
@@ -959,7 +959,7 @@
 
 			if (
 				response.status === 401 &&
-				localStorage.token &&
+				sessionStorage.token &&
 				isAuthenticatedBackendFetch(input, init) &&
 				(await isCurrentSessionUnauthorized(originalFetch))
 			) {
@@ -1131,9 +1131,9 @@
 				const currentUrl = `${window.location.pathname}${window.location.search}`;
 				const encodedUrl = encodeURIComponent(currentUrl);
 
-				if (localStorage.token) {
+				if (sessionStorage.token) {
 					// Get Session User Info
-					const sessionUser = await getSessionUser(localStorage.token).catch((error) => {
+					const sessionUser = await getSessionUser(sessionStorage.token).catch((error) => {
 						toast.error(`${error}`);
 						return null;
 					});
@@ -1149,7 +1149,7 @@
 						// Keep user timezone in sync on every app load/refresh
 						const timezone = getUserTimezone();
 						if (timezone) {
-							updateUserTimezone(localStorage.token, timezone);
+							updateUserTimezone(sessionStorage.token, timezone);
 						}
 
 						// Relay auth token to desktop app for API access
@@ -1157,7 +1157,7 @@
 							window.electronAPI
 								.send({
 									type: 'token:update',
-									token: localStorage.token
+									token: sessionStorage.token
 								})
 								.catch(() => {});
 						}

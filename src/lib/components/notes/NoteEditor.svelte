@@ -171,7 +171,7 @@
 
 	const init = async () => {
 		loading = true;
-		const res = await getNoteById(localStorage.token, id).catch((error) => {
+		const res = await getNoteById(sessionStorage.token, id).catch((error) => {
 			toast.error(`${error}`);
 			return null;
 		});
@@ -189,7 +189,7 @@
 				$socket?.emit('join-note', {
 					note_id: id,
 					auth: {
-						token: localStorage.token
+						token: sessionStorage.token
 					}
 				});
 				$socket?.on('note-events', noteEventHandler);
@@ -210,7 +210,7 @@
 		}
 
 		debounceTimeout = setTimeout(async () => {
-			const res = await updateNoteById(localStorage.token, id, {
+			const res = await updateNoteById(sessionStorage.token, id, {
 				title: note?.title === '' ? $i18n.t('Untitled') : note.title,
 				data: {
 					files: files
@@ -221,7 +221,7 @@
 			});
 
 			if (res) {
-				pinnedNotes.set(await getPinnedNoteList(localStorage.token).catch(() => []));
+				pinnedNotes.set(await getPinnedNoteList(sessionStorage.token).catch(() => []));
 			}
 		}, 200);
 	};
@@ -285,7 +285,7 @@ ${content}
 		titleGenerating = true;
 
 		const res = await generateOpenAIChatCompletion(
-			localStorage.token,
+			sessionStorage.token,
 			{
 				model: selectedModelId,
 				stream: false,
@@ -454,7 +454,7 @@ ${content}
 			}
 
 			// During the file upload, file content is automatically extracted.
-			const uploadedFile = await uploadFile(localStorage.token, file, metadata);
+			const uploadedFile = await uploadFile(sessionStorage.token, file, metadata);
 
 			if (uploadedFile) {
 				console.log('File upload completed:', uploadedFile);
@@ -465,7 +465,7 @@ ${content}
 				}
 
 				fileItem.status = 'uploaded';
-				fileItem.file = await getFileById(localStorage.token, uploadedFile.id).catch((e) => {
+				fileItem.file = await getFileById(sessionStorage.token, uploadedFile.id).catch((e) => {
 					toast.error(`${e}`);
 					return null;
 				});
@@ -616,13 +616,13 @@ ${content}
 	};
 
 	const deleteNoteHandler = async (id) => {
-		const res = await deleteNoteById(localStorage.token, id).catch((error) => {
+		const res = await deleteNoteById(sessionStorage.token, id).catch((error) => {
 			toast.error(`${error}`);
 			return null;
 		});
 
 		if (res) {
-			pinnedNotes.set(await getPinnedNoteList(localStorage.token).catch(() => []));
+			pinnedNotes.set(await getPinnedNoteList(sessionStorage.token).catch(() => []));
 			toast.success($i18n.t('Note deleted successfully'));
 			goto('/notes');
 		} else {
@@ -656,7 +656,7 @@ Provide the enhanced notes in markdown format. Use markdown syntax for headings,
 `;
 
 		const [res, controller] = await chatCompletion(
-			localStorage.token,
+			sessionStorage.token,
 			{
 				model: model.id,
 				stream: true,
@@ -886,7 +886,7 @@ Provide the enhanced notes in markdown format. Use markdown syntax for headings,
 		onChange={async () => {
 			if (id) {
 				try {
-					await updateNoteAccessGrants(localStorage.token, id, note.access_grants ?? []);
+					await updateNoteAccessGrants(sessionStorage.token, id, note.access_grants ?? []);
 					toast.success($i18n.t('Saved'));
 				} catch (error) {
 					toast.error(`${error}`);
@@ -1099,9 +1099,9 @@ Provide the enhanced notes in markdown format. Use markdown syntax for headings,
 									}}
 									isPinned={$pinnedNotes.some((n) => n.id === note.id)}
 									onPin={async () => {
-										await toggleNotePinnedStatusById(localStorage.token, note.id);
-										note = await getNoteById(localStorage.token, note.id);
-										pinnedNotes.set(await getPinnedNoteList(localStorage.token).catch(() => []));
+										await toggleNotePinnedStatusById(sessionStorage.token, note.id);
+										note = await getNoteById(sessionStorage.token, note.id);
+										pinnedNotes.set(await getPinnedNoteList(sessionStorage.token).catch(() => []));
 									}}
 								>
 									<div class="p-1 bg-transparent hover:bg-white/5 transition rounded-lg">

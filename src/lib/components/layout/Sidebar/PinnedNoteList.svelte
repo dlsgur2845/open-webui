@@ -46,7 +46,7 @@
 					current.splice(oldIndex, 1);
 					current.splice(newIndex, 0, noteId);
 					settings.set({ ...$settings, pinnedNotesOrder: current });
-					await updateUserSettings(localStorage.token, { ui: $settings });
+					await updateUserSettings(sessionStorage.token, { ui: $settings });
 				}
 			});
 		}
@@ -87,8 +87,8 @@
 			<button
 				class="invisible group-hover:visible self-center p-0.5 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition"
 				on:click|preventDefault|stopPropagation={async () => {
-					await toggleNotePinnedStatusById(localStorage.token, note.id);
-					const _pinnedNotes = await getPinnedNoteList(localStorage.token).catch(() => []);
+					await toggleNotePinnedStatusById(sessionStorage.token, note.id);
+					const _pinnedNotes = await getPinnedNoteList(sessionStorage.token).catch(() => []);
 					pinnedNotes.set(_pinnedNotes);
 				}}
 				aria-label={$i18n.t('Unpin')}

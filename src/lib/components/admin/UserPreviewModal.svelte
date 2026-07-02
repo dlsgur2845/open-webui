@@ -23,7 +23,7 @@
 		loading = true;
 		error = '';
 		try {
-			preview = await getUserPreview(localStorage.token, userId);
+			preview = await getUserPreview(sessionStorage.token, userId);
 		} catch (e) {
 			error = String(e);
 		} finally {

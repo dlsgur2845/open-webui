@@ -104,7 +104,7 @@
 				: {})
 		};
 
-		const res = await registerOAuthClient(localStorage.token, formData, 'mcp').catch((err) => {
+		const res = await registerOAuthClient(sessionStorage.token, formData, 'mcp').catch((err) => {
 			toast.error($i18n.t('Registration failed'));
 			return null;
 		});
@@ -156,7 +156,7 @@
 
 		if (direct) {
 			const res = await getToolServerData(
-				auth_type === 'bearer' ? key : localStorage.token,
+				auth_type === 'bearer' ? key : sessionStorage.token,
 				path.includes('://') ? path : `${url}${path.startsWith('/') ? '' : '/'}${path}`
 			).catch((err) => {
 				toast.error($i18n.t('Connection failed'));
@@ -167,7 +167,7 @@
 				console.debug('Connection successful', res);
 			}
 		} else {
-			const res = await verifyToolServerConnection(localStorage.token, {
+			const res = await verifyToolServerConnection(sessionStorage.token, {
 				url,
 				path,
 				type,

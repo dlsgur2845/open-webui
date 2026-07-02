@@ -58,7 +58,7 @@
 	const getUserList = async () => {
 		try {
 			const res = await getChannelMembersById(
-				localStorage.token,
+				sessionStorage.token,
 				channel.id,
 				query,
 				orderBy,

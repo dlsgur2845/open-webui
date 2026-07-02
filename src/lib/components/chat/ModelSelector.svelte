@@ -21,7 +21,7 @@
 			return;
 		}
 		settings.set({ ...$settings, models: selectedModels });
-		await updateUserSettings(localStorage.token, { ui: $settings });
+		await updateUserSettings(sessionStorage.token, { ui: $settings });
 
 		toast.success($i18n.t('Default model updated'));
 	};
@@ -36,7 +36,7 @@
 		}
 
 		settings.set({ ...$settings, pinnedModels: pinnedModels });
-		await updateUserSettings(localStorage.token, { ui: $settings });
+		await updateUserSettings(sessionStorage.token, { ui: $settings });
 	};
 
 	$: if (selectedModels.length > 0 && $models.length > 0) {

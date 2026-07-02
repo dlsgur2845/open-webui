@@ -33,7 +33,7 @@
 
 	const checkForVersionUpdates = async () => {
 		updateAvailable = null;
-		version = await getVersionUpdates(localStorage.token).catch((error) => {
+		version = await getVersionUpdates(sessionStorage.token).catch((error) => {
 			return {
 				current: WEBUI_VERSION,
 				latest: WEBUI_VERSION
@@ -47,11 +47,11 @@
 	};
 
 	const updateBanners = async () => {
-		_banners.set(await setBanners(localStorage.token, banners));
+		_banners.set(await setBanners(sessionStorage.token, banners));
 	};
 
 	const updateHandler = async () => {
-		const res = await updateAdminConfig(localStorage.token, adminConfig);
+		const res = await updateAdminConfig(sessionStorage.token, adminConfig);
 
 		await updateBanners();
 
@@ -65,7 +65,7 @@
 	};
 
 	onMount(async () => {
-		adminConfig = await getAdminConfig(localStorage.token);
+		adminConfig = await getAdminConfig(sessionStorage.token);
 
 		banners = [...$_banners];
 	});

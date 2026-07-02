@@ -38,7 +38,7 @@
 					pinnedModels.splice(newIndex, 0, modelId);
 
 					settings.set({ ...$settings, pinnedModels: pinnedModels });
-					await updateUserSettings(localStorage.token, { ui: $settings });
+					await updateUserSettings(sessionStorage.token, { ui: $settings });
 				}
 			});
 		}
@@ -56,7 +56,7 @@
 		if (validModels.length !== modelIds.length) {
 			pinnedModels = validModels;
 			settings.set({ ...$settings, pinnedModels: validModels });
-			await updateUserSettings(localStorage.token, { ui: $settings });
+			await updateUserSettings(sessionStorage.token, { ui: $settings });
 		}
 	};
 
@@ -68,7 +68,7 @@
 			pinnedModels = defaultPinnedModels.filter((id) => $models.find((model) => model.id === id));
 
 			settings.set({ ...$settings, pinnedModels });
-			await updateUserSettings(localStorage.token, { ui: $settings });
+			await updateUserSettings(sessionStorage.token, { ui: $settings });
 		}
 
 		// Auto-unpin hidden or deleted models
@@ -109,7 +109,7 @@
 					? () => {
 							const pinnedModels = $settings.pinnedModels.filter((id) => id !== modelId);
 							settings.set({ ...$settings, pinnedModels });
-							updateUserSettings(localStorage.token, { ui: $settings });
+							updateUserSettings(sessionStorage.token, { ui: $settings });
 						}
 					: null}
 			/>

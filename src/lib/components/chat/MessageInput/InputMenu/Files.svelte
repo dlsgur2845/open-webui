@@ -29,7 +29,7 @@
 
 	const getItemsPage = async () => {
 		itemsLoading = true;
-		let res = await searchFiles(localStorage.token, '*', page * limit, limit).catch(() => []);
+		let res = await searchFiles(sessionStorage.token, '*', page * limit, limit).catch(() => []);
 
 		if ((res ?? []).length < limit) {
 			allItemsLoaded = true;

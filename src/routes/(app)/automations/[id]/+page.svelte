@@ -27,7 +27,7 @@
 		}
 
 		if (automationId) {
-			const res = await getAutomationById(localStorage.token, automationId).catch((error) => {
+			const res = await getAutomationById(sessionStorage.token, automationId).catch((error) => {
 				toast.error(`${error}`);
 				return null;
 			});

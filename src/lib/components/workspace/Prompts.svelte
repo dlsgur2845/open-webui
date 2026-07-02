@@ -82,7 +82,7 @@
 		loading = true;
 		try {
 			const res = await getPromptItems(
-				localStorage.token,
+				sessionStorage.token,
 				query,
 				viewOption,
 				selectedTag,
@@ -99,7 +99,7 @@
 				total = res.total;
 
 				// get tags
-				tags = await getPromptTags(localStorage.token).catch((error) => {
+				tags = await getPromptTags(sessionStorage.token).catch((error) => {
 					toast.error(`${error}`);
 					return [];
 				});
@@ -162,7 +162,7 @@
 	const deleteHandler = async (prompt) => {
 		const command = prompt.command;
 
-		const res = await deletePromptById(localStorage.token, prompt.id).catch((err) => {
+		const res = await deletePromptById(sessionStorage.token, prompt.id).catch((err) => {
 			toast.error(err);
 			return null;
 		});
@@ -250,7 +250,7 @@
 
 					try {
 						for (const prompt of savedPrompts) {
-							await createNewPrompt(localStorage.token, {
+							await createNewPrompt(sessionStorage.token, {
 								command: prompt.command,
 								name: prompt.name,
 								content: prompt.content
@@ -505,7 +505,7 @@
 										<Switch
 											bind:state={prompt.is_active}
 											on:change={async () => {
-												togglePromptById(localStorage.token, prompt.id);
+												togglePromptById(sessionStorage.token, prompt.id);
 											}}
 										/>
 									</Tooltip>

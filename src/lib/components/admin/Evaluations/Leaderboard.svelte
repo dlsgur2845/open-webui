@@ -44,7 +44,7 @@
 	const loadLeaderboard = async (searchQuery = '') => {
 		loading = true;
 		try {
-			const result = await getLeaderboard(localStorage.token, searchQuery);
+			const result = await getLeaderboard(sessionStorage.token, searchQuery);
 			const statsMap = new Map((result?.entries ?? []).map((e) => [e.model_id, e]));
 			const modelMap = new Map(($models ?? []).map((m) => [m.id, m]));
 

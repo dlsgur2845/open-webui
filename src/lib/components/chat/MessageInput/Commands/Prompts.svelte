@@ -36,7 +36,7 @@
 	}
 
 	const getItems = async () => {
-		const res = await getPrompts(localStorage.token).catch(() => null);
+		const res = await getPrompts(sessionStorage.token).catch(() => null);
 		if (res) {
 			items = res;
 		}

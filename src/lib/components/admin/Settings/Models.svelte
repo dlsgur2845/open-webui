@@ -181,13 +181,13 @@
 	const init = async () => {
 		models = null;
 
-		tags = await getBaseModelTags(localStorage.token);
+		tags = await getBaseModelTags(sessionStorage.token);
 		if (selectedTag && !tags.includes(selectedTag)) {
 			selectedTag = '';
 		}
 
-		workspaceModels = await getBaseModels(localStorage.token, selectedTag);
-		baseModels = await getModels(localStorage.token, null, true);
+		workspaceModels = await getBaseModels(sessionStorage.token, selectedTag);
+		baseModels = await getModels(sessionStorage.token, null, true);
 		const workspaceModelIds = new Set<string>(workspaceModels.map((wm: ModelListItem) => wm.id));
 
 		models = baseModels
@@ -213,7 +213,7 @@
 
 		_models.set(
 			await getModels(
-				localStorage.token,
+				sessionStorage.token,
 				$config?.features?.enable_direct_connections && ($settings?.directConnections ?? null)
 			)
 		);
@@ -223,7 +223,7 @@
 		model = { ...model, base_model_id: null, ...overrides };
 
 		if (workspaceModels.find((m) => m.id === model.id)) {
-			const res = await updateModelById(localStorage.token, model.id, model).catch((error) => {
+			const res = await updateModelById(sessionStorage.token, model.id, model).catch((error) => {
 				return null;
 			});
 
@@ -231,7 +231,7 @@
 				toast.success($i18n.t('Model updated successfully'));
 			}
 		} else {
-			const res = await createNewModel(localStorage.token, {
+			const res = await createNewModel(sessionStorage.token, {
 				meta: {},
 				id: model.id,
 				name: model.name,
@@ -252,7 +252,7 @@
 
 	const toggleModelHandler = async (model) => {
 		if (!Object.keys(model).includes('base_model_id')) {
-			await createNewModel(localStorage.token, {
+			await createNewModel(sessionStorage.token, {
 				id: model.id,
 				name: model.name,
 				base_model_id: null,
@@ -264,13 +264,13 @@
 				return null;
 			});
 		} else {
-			await toggleModelById(localStorage.token, model.id);
+			await toggleModelById(sessionStorage.token, model.id);
 		}
 
 		// await init();
 		_models.set(
 			await getModels(
-				localStorage.token,
+				sessionStorage.token,
 				$config?.features?.enable_direct_connections && ($settings?.directConnections ?? null)
 			)
 		);
@@ -335,7 +335,7 @@
 		}
 
 		settings.set({ ...$settings, pinnedModels: pinnedModels });
-		await updateUserSettings(localStorage.token, { ui: $settings });
+		await updateUserSettings(sessionStorage.token, { ui: $settings });
 	};
 
 	onMount(async () => {
@@ -408,7 +408,7 @@
 
 										try {
 											const models = JSON.parse(String(event.target.result));
-											const res = await importModels(localStorage.token, models);
+											const res = await importModels(sessionStorage.token, models);
 
 											if (res) {
 												toast.success($i18n.t('Models imported successfully'));

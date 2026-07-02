@@ -58,12 +58,12 @@
 			};
 
 			if (automation) {
-				await updateAutomationById(localStorage.token, automation.id, form);
+				await updateAutomationById(sessionStorage.token, automation.id, form);
 				toast.success($i18n.t('Automation updated'));
 				show = false;
 				dispatch('save', { id: automation.id });
 			} else {
-				const created = await createAutomation(localStorage.token, form);
+				const created = await createAutomation(sessionStorage.token, form);
 				toast.success($i18n.t('Automation created'));
 				show = false;
 				dispatch('save', { id: created?.id });

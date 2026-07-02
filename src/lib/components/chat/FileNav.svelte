@@ -243,7 +243,7 @@
 
 		const isSystem = !!systemTerminal;
 		const url = systemTerminal?.url ?? userTerminal?.url ?? '';
-		const key = isSystem ? localStorage.token : (userTerminal?.key ?? '');
+		const key = isSystem ? sessionStorage.token : (userTerminal?.key ?? '');
 
 		return url ? { url, key } : null;
 	};

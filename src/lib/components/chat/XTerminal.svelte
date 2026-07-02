@@ -52,7 +52,7 @@
 
 		connecting = true;
 
-		const token = localStorage.getItem('token') ?? '';
+		const token = sessionStorage.getItem('token') ?? '';
 
 		try {
 			let sessionId: string;

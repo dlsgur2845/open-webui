@@ -43,10 +43,10 @@
 	let oauthConfig: any = null;
 
 	const updateLdapServerHandler = async () => {
-		await updateLdapConfig(localStorage.token, ENABLE_LDAP);
+		await updateLdapConfig(sessionStorage.token, ENABLE_LDAP);
 		if (!ENABLE_LDAP) return true;
 
-		const res = await updateLdapServer(localStorage.token, LDAP_SERVER).catch((error) => {
+		const res = await updateLdapServer(sessionStorage.token, LDAP_SERVER).catch((error) => {
 			toast.error(`${error}`);
 			return null;
 		});
@@ -56,7 +56,7 @@
 
 	const updateOAuthHandler = async () => {
 		if (!oauthConfig) return true;
-		const res = await updateOAuthConfig(localStorage.token, oauthConfig).catch((error) => {
+		const res = await updateOAuthConfig(sessionStorage.token, oauthConfig).catch((error) => {
 			toast.error(`${error}`);
 			return null;
 		});
@@ -68,7 +68,7 @@
 
 	const updateAdminHandler = async () => {
 		if (!adminConfig) return true;
-		const res = await updateAdminConfig(localStorage.token, adminConfig).catch((error) => {
+		const res = await updateAdminConfig(sessionStorage.token, adminConfig).catch((error) => {
 			toast.error(`${error}`);
 			return null;
 		});
@@ -89,20 +89,20 @@
 	onMount(async () => {
 		await Promise.all([
 			(async () => {
-				adminConfig = await getAdminConfig(localStorage.token);
+				adminConfig = await getAdminConfig(sessionStorage.token);
 			})(),
 			(async () => {
-				groups = await getGroups(localStorage.token);
+				groups = await getGroups(sessionStorage.token);
 			})(),
 			(async () => {
-				LDAP_SERVER = await getLdapServer(localStorage.token);
+				LDAP_SERVER = await getLdapServer(sessionStorage.token);
 			})(),
 			(async () => {
-				oauthConfig = await getOAuthConfig(localStorage.token).catch(() => null);
+				oauthConfig = await getOAuthConfig(sessionStorage.token).catch(() => null);
 			})()
 		]);
 
-		const ldapConfig = await getLdapConfig(localStorage.token);
+		const ldapConfig = await getLdapConfig(sessionStorage.token);
 		ENABLE_LDAP = ldapConfig.ENABLE_LDAP;
 	});
 </script>

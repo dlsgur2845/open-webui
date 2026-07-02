@@ -20,7 +20,7 @@
 	const loadUser = async (userId: string) => {
 		requestedUserId = userId;
 
-		const loadedUser = await getUserInfoById(localStorage.token, userId).catch((error) => {
+		const loadedUser = await getUserInfoById(sessionStorage.token, userId).catch((error) => {
 			if (requestedUserId === userId) {
 				console.error('Error fetching user by ID:', error);
 			}

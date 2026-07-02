@@ -95,7 +95,7 @@
 				},
 				is_active
 			};
-			const updated = await updateAutomationById(localStorage.token, automation.id, form);
+			const updated = await updateAutomationById(sessionStorage.token, automation.id, form);
 			if (updated) {
 				automation = updated;
 				isDirty = false;
@@ -109,7 +109,7 @@
 	};
 
 	const toggleHandler = async () => {
-		const res = await toggleAutomationById(localStorage.token, automation.id).catch((err) => {
+		const res = await toggleAutomationById(sessionStorage.token, automation.id).catch((err) => {
 			toast.error(`${err}`);
 			return null;
 		});
@@ -121,7 +121,7 @@
 
 	const runNowHandler = async () => {
 		loading = true;
-		const res = await runAutomationById(localStorage.token, automation.id).catch((err) => {
+		const res = await runAutomationById(sessionStorage.token, automation.id).catch((err) => {
 			toast.error(`${err}`);
 			return null;
 		});
@@ -133,7 +133,7 @@
 	};
 
 	const deleteHandler = async () => {
-		const res = await deleteAutomationById(localStorage.token, automation.id).catch((err) => {
+		const res = await deleteAutomationById(sessionStorage.token, automation.id).catch((err) => {
 			toast.error(`${err}`);
 			return null;
 		});
@@ -155,7 +155,7 @@
 
 		try {
 			const fetchedRuns =
-				(await getAutomationRuns(localStorage.token, automation.id, runsPage * 50, 50)) ?? [];
+				(await getAutomationRuns(sessionStorage.token, automation.id, runsPage * 50, 50)) ?? [];
 			if (loadMore) {
 				runs = [...runs, ...fetchedRuns];
 			} else {

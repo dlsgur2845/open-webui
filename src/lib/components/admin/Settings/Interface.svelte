@@ -45,8 +45,8 @@
 
 	const updateInterfaceHandler = async () => {
 		[taskConfig, chatConfig] = await Promise.all([
-			updateTaskConfig(localStorage.token, taskConfig),
-			updateChatConfig(localStorage.token, chatConfig)
+			updateTaskConfig(sessionStorage.token, taskConfig),
+			updateChatConfig(sessionStorage.token, chatConfig)
 		]);
 	};
 
@@ -58,12 +58,12 @@
 	const init = async () => {
 		try {
 			[taskConfig, chatConfig] = await Promise.all([
-				getTaskConfig(localStorage.token),
-				getChatConfig(localStorage.token)
+				getTaskConfig(sessionStorage.token),
+				getChatConfig(sessionStorage.token)
 			]);
 
-			workspaceModels = await getBaseModels(localStorage.token);
-			baseModels = await getModels(localStorage.token, null, false);
+			workspaceModels = await getBaseModels(sessionStorage.token);
+			baseModels = await getModels(sessionStorage.token, null, false);
 
 			models = baseModels.map((m) => {
 				const workspaceModel = workspaceModels.find((wm) => wm.id === m.id);

@@ -248,7 +248,7 @@
 			text = text.replaceAll('{{USER_LOCATION}}', String(location));
 		}
 
-		const sessionUser = await getSessionUser(localStorage.token);
+		const sessionUser = await getSessionUser(sessionStorage.token);
 
 		if (text.includes('{{USER_NAME}}')) {
 			const name = sessionUser?.name || 'User';
@@ -663,7 +663,7 @@
 				}
 
 				// During the file upload, file content is automatically extracted.
-				const uploadedFile = await uploadFile(localStorage.token, file, metadata, process);
+				const uploadedFile = await uploadFile(sessionStorage.token, file, metadata, process);
 
 				if (uploadedFile) {
 					console.log('File upload completed:', {
@@ -889,7 +889,7 @@
 				const data = JSON.parse(textData);
 				if (data.type === 'chat' && data.id) {
 					// Fetch the chat to get its title, then add as a reference chat
-					const chat = await getChatById(localStorage.token, data.id);
+					const chat = await getChatById(sessionStorage.token, data.id);
 					if (chat) {
 						const chatItem = {
 							type: 'chat',
@@ -907,7 +907,7 @@
 					return;
 				} else if (data.type === 'folder' && data.id) {
 					// Fetch the folder to get its name, then add as a reference folder
-					const folder = await getFolderById(localStorage.token, data.id);
+					const folder = await getFolderById(sessionStorage.token, data.id);
 					if (folder) {
 						const folderItem = {
 							type: 'folder',
@@ -924,7 +924,7 @@
 					return;
 				} else if (data.type === 'note' && data.id) {
 					// Fetch the note to get its title, then add as a reference note
-					const note = await getNoteById(localStorage.token, data.id);
+					const note = await getNoteById(sessionStorage.token, data.id);
 					if (note) {
 						const noteItem = {
 							type: 'note',
@@ -1549,7 +1549,7 @@
 														}
 
 														const res = await generateAutoCompletion(
-															localStorage.token,
+															sessionStorage.token,
 															selectedModelIds.at(0),
 															text,
 															history?.currentId

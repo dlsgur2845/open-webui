@@ -27,10 +27,10 @@
 	const shareLocalChat = async () => {
 		const _chat = chat;
 
-		const sharedChat = await shareChatById(localStorage.token, chatId);
+		const sharedChat = await shareChatById(sessionStorage.token, chatId);
 		shareUrl = `${window.location.origin}/s/${sharedChat.share_id}`;
 		console.log(shareUrl);
-		chat = await getChatById(localStorage.token, chatId);
+		chat = await getChatById(sessionStorage.token, chatId);
 
 		return shareUrl;
 	};
@@ -65,7 +65,7 @@
 	const loadAccessGrants = async () => {
 		if (!chatId) return;
 		try {
-			accessGrants = (await getChatAccessGrants(localStorage.token, chatId)) ?? [];
+			accessGrants = (await getChatAccessGrants(sessionStorage.token, chatId)) ?? [];
 		} catch (e) {
 			console.error('Failed to load access grants', e);
 			accessGrants = [];
@@ -74,7 +74,7 @@
 
 	const saveAccessGrants = async () => {
 		try {
-			await updateChatAccessGrants(localStorage.token, chatId, accessGrants);
+			await updateChatAccessGrants(sessionStorage.token, chatId, accessGrants);
 			toast.success($i18n.t('Access updated'));
 		} catch (e) {
 			toast.error(`${e}`);
@@ -96,7 +96,7 @@
 	$: if (show) {
 		(async () => {
 			if (chatId) {
-				const _chat = await getChatById(localStorage.token, chatId);
+				const _chat = await getChatById(sessionStorage.token, chatId);
 				if (isDifferentChat(_chat)) {
 					chat = _chat;
 				}
@@ -136,10 +136,10 @@
 						<button
 							class="underline"
 							on:click={async () => {
-								const res = await deleteSharedChatById(localStorage.token, chatId);
+								const res = await deleteSharedChatById(sessionStorage.token, chatId);
 
 								if (res) {
-									chat = await getChatById(localStorage.token, chatId);
+									chat = await getChatById(sessionStorage.token, chatId);
 								}
 							}}
 							>{$i18n.t('delete this link')}

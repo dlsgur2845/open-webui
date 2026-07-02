@@ -304,7 +304,7 @@
 
 		const fetched = await Promise.all(
 			pendingIds.map(async (id) => {
-				const user = await getUserInfoById(localStorage.token, id).catch((error) => {
+				const user = await getUserInfoById(sessionStorage.token, id).catch((error) => {
 					console.error(error);
 					return null;
 				});
@@ -348,7 +348,7 @@
 
 		const fetched = await Promise.all(
 			pendingIds.map(async (id) => {
-				const group = await getGroupInfoById(localStorage.token, id).catch((error) => {
+				const group = await getGroupInfoById(sessionStorage.token, id).catch((error) => {
 					console.error(error);
 					return null;
 				});
@@ -419,7 +419,7 @@
 
 	onMount(async () => {
 		console.log('AccessControl mounted', { accessGrants, accessControl });
-		const res = await getGroups(localStorage.token, true).catch((error) => {
+		const res = await getGroups(sessionStorage.token, true).catch((error) => {
 			console.error(error);
 			return [];
 		});

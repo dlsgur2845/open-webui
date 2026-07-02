@@ -15,14 +15,14 @@
 	export let saveHandler: Function;
 
 	const exportAllUserChats = async () => {
-		let blob = new Blob([JSON.stringify(await getAllUserChats(localStorage.token))], {
+		let blob = new Blob([JSON.stringify(await getAllUserChats(sessionStorage.token))], {
 			type: 'application/json'
 		});
 		saveAs(blob, `all-chats-export-${Date.now()}.json`);
 	};
 
 	const exportUsers = async () => {
-		const users = await getAllUsers(localStorage.token);
+		const users = await getAllUsers(sessionStorage.token);
 
 		const headers = ['id', 'name', 'email', 'role'];
 
@@ -45,7 +45,7 @@
 	};
 
 	onMount(async () => {
-		// permissions = await getUserPermissions(localStorage.token);
+		// permissions = await getUserPermissions(sessionStorage.token);
 	});
 </script>
 
@@ -61,7 +61,7 @@
 				const reader = new FileReader();
 
 				reader.onload = async (e) => {
-					const res = await importConfig(localStorage.token, JSON.parse(e.target.result)).catch(
+					const res = await importConfig(sessionStorage.token, JSON.parse(e.target.result)).catch(
 						(error) => {
 							toast.error(`${error}`);
 						}
@@ -101,7 +101,7 @@
 					<button
 						class="p-1 px-3 text-xs flex rounded-sm transition"
 						on:click={async () => {
-							const config = await exportConfig(localStorage.token);
+							const config = await exportConfig(sessionStorage.token);
 							const blob = new Blob([JSON.stringify(config)], {
 								type: 'application/json'
 							});
@@ -125,7 +125,7 @@
 						<button
 							class="p-1 px-3 text-xs flex rounded-sm transition"
 							on:click={() => {
-								downloadDatabase(localStorage.token).catch((error) => {
+								downloadDatabase(sessionStorage.token).catch((error) => {
 									toast.error(`${error}`);
 								});
 							}}
