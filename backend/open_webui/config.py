@@ -1995,6 +1995,12 @@ AUTOMATION_AUTH_TOKEN_EXPIRES_IN = os.getenv('AUTOMATION_AUTH_TOKEN_EXPIRES_IN',
 
 ENABLE_NOTES = os.getenv('ENABLE_NOTES', 'True').lower() == 'true'
 
+ENABLE_IMAGE_CAPTURE = os.getenv('ENABLE_IMAGE_CAPTURE', 'True').lower() == 'true'
+
+ENABLE_WEBPAGE_ATTACHMENT = os.getenv('ENABLE_WEBPAGE_ATTACHMENT', 'True').lower() == 'true'
+
+ENABLE_USER_PERSONAL_INFO = os.getenv('ENABLE_USER_PERSONAL_INFO', 'True').lower() == 'true'
+
 ENABLE_USER_STATUS = os.getenv('ENABLE_USER_STATUS', 'True').lower() == 'true'
 
 ENABLE_EVALUATION_ARENA_MODELS = os.getenv('ENABLE_EVALUATION_ARENA_MODELS', 'True').lower() == 'true'
@@ -2219,6 +2225,11 @@ JSON format: { "follow_ups": ["Question 1?", "Question 2?", "Question 3?"] }
 
 ENABLE_FOLLOW_UP_GENERATION = os.getenv('ENABLE_FOLLOW_UP_GENERATION', 'True').lower() == 'true'
 
+# Automatic chat deletion (data retention policy)
+CHAT_DELETE_ENABLED = os.getenv('CHAT_DELETE_ENABLED', 'False').lower() == 'true'
+
+CHAT_DELETE_DAYS = int(os.getenv('CHAT_DELETE_DAYS', '365'))
+
 ENABLE_TAGS_GENERATION = os.getenv('ENABLE_TAGS_GENERATION', 'True').lower() == 'true'
 
 ENABLE_TITLE_GENERATION = os.getenv('ENABLE_TITLE_GENERATION', 'True').lower() == 'true'
@@ -2388,7 +2399,7 @@ ENABLE_API_KEYS_ENDPOINT_RESTRICTIONS = (
 
 API_KEYS_ALLOWED_ENDPOINTS = os.getenv('API_KEYS_ALLOWED_ENDPOINTS', os.getenv('API_KEY_ALLOWED_ENDPOINTS', ''))
 
-JWT_EXPIRES_IN = os.getenv('JWT_EXPIRES_IN', '4w')
+JWT_EXPIRES_IN = os.getenv('JWT_EXPIRES_IN', '24h')
 
 if JWT_EXPIRES_IN == '-1':
     log.warning(
@@ -3020,6 +3031,9 @@ DEFAULT_CONFIG = {
     'automations.min_interval': AUTOMATION_MIN_INTERVAL,
     'automations.auth_token_expires_in': AUTOMATION_AUTH_TOKEN_EXPIRES_IN,
     'notes.enable': ENABLE_NOTES,
+    'ui.enable_image_capture': ENABLE_IMAGE_CAPTURE,
+    'ui.enable_webpage_attachment': ENABLE_WEBPAGE_ATTACHMENT,
+    'ui.enable_user_personal_info': ENABLE_USER_PERSONAL_INFO,
     'users.enable_status': ENABLE_USER_STATUS,
     'evaluation.arena.enable': ENABLE_EVALUATION_ARENA_MODELS,
     'evaluation.arena.models': EVALUATION_ARENA_MODELS,
@@ -3032,6 +3046,8 @@ DEFAULT_CONFIG = {
     'auth.admin.email': ADMIN_EMAIL,
     'task.model.default': TASK_MODEL,
     'task.model.external': TASK_MODEL_EXTERNAL,
+    'chat.delete.enable': CHAT_DELETE_ENABLED,
+    'chat.delete.days': CHAT_DELETE_DAYS,
     'chat.context_compaction.enable': ENABLE_CONTEXT_COMPACTION,
     'chat.context_compaction.token_threshold': CONTEXT_COMPACTION_TOKEN_THRESHOLD,
     'chat.context_compaction.prompt_template': CONTEXT_COMPACTION_PROMPT_TEMPLATE,

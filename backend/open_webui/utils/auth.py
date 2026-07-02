@@ -7,9 +7,10 @@ import hmac
 import json
 import logging
 import os
+import re
 import uuid
 from datetime import datetime, timedelta
-from typing import Optional, Union
+from typing import Dict, Optional, Union
 
 import bcrypt
 import jwt
@@ -22,10 +23,12 @@ from fastapi import BackgroundTasks, Depends, HTTPException, Request, Response, 
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from open_webui.constants import ERROR_MESSAGES
 from open_webui.env import (
+    DISABLE_ADMIN,
     ENABLE_OTEL,
     ENABLE_PASSWORD_VALIDATION,
     LICENSE_BLOB,
     OFFLINE_MODE,
+    PASSWORD_BLACKLIST,
     PASSWORD_HASH_ALGORITHM,
     PASSWORD_VALIDATION_HINT,
     PASSWORD_VALIDATION_REGEX_PATTERN,
@@ -173,16 +176,69 @@ async def get_password_hash(password: str) -> str:
     raise ValueError(f'Unsupported PASSWORD_HASH_ALGORITHM: {PASSWORD_HASH_ALGORITHM}')
 
 
-def validate_password(password: str) -> bool:
+def validate_password(password: str, user_data: Optional[Dict[str, str]] = None) -> bool:
     # bcrypt only accepts 72 bytes; reject long new passwords instead of storing an unusable hash.
     if PASSWORD_HASH_ALGORITHM == 'bcrypt' and len(password.encode('utf-8')) > PASSWORD_BCRYPT_MAX_BYTES:
         raise Exception(
             ERROR_MESSAGES.PASSWORD_TOO_LONG,
         )
 
-    if ENABLE_PASSWORD_VALIDATION:
-        if not PASSWORD_VALIDATION_REGEX_PATTERN.match(password):
-            raise Exception(ERROR_MESSAGES.INVALID_PASSWORD(PASSWORD_VALIDATION_HINT))
+    if not ENABLE_PASSWORD_VALIDATION:
+        return True
+
+    # 1. Length check
+    if len(password) < 8:
+        raise Exception(ERROR_MESSAGES.PASSWORD_TOO_SHORT)
+
+    # 2. Complexity check (Letter, Number, Special)
+    has_letter = re.search(r'[a-zA-Z]', password)
+    has_number = re.search(r'\d', password)
+    has_special = re.search(r'[^\w\s]', password)
+
+    if not (has_letter and has_number and has_special):
+        raise Exception(ERROR_MESSAGES.PASSWORD_MISSING_CHARS)
+
+    # 3. Sequence check (4+ length, forward/backward, alphanumeric only)
+    for i in range(len(password) - 3):
+        # Forward sequence
+        if (
+            ord(password[i + 1]) == ord(password[i]) + 1
+            and ord(password[i + 2]) == ord(password[i]) + 2
+            and ord(password[i + 3]) == ord(password[i]) + 3
+        ):
+            if password[i : i + 4].isalnum():
+                raise Exception(ERROR_MESSAGES.PASSWORD_SEQUENTIAL)
+
+        # Backward sequence
+        if (
+            ord(password[i + 1]) == ord(password[i]) - 1
+            and ord(password[i + 2]) == ord(password[i]) - 2
+            and ord(password[i + 3]) == ord(password[i]) - 3
+        ):
+            if password[i : i + 4].isalnum():
+                raise Exception(ERROR_MESSAGES.PASSWORD_SEQUENTIAL)
+
+    # 4. Repetition check (4+ identical characters)
+    for i in range(len(password) - 3):
+        if password[i] == password[i + 1] == password[i + 2] == password[i + 3]:
+            raise Exception(ERROR_MESSAGES.PASSWORD_REPETITIVE)
+
+    # 5. Common strings check (case-insensitive substring match)
+    for blacklisted in PASSWORD_BLACKLIST:
+        if blacklisted.lower() in password.lower():
+            raise Exception(ERROR_MESSAGES.PASSWORD_COMMON)
+
+    # 6. Account info check (email local-part / name)
+    if user_data:
+        email = (user_data.get('email') or '').lower()
+        if email:
+            email_id = email.split('@')[0]
+            if email_id and email_id in password.lower():
+                raise Exception(ERROR_MESSAGES.PASSWORD_CONTAINS_ACCOUNT_INFO)
+
+        name = (user_data.get('name') or '').lower()
+        if name and name in password.lower():
+            raise Exception(ERROR_MESSAGES.PASSWORD_CONTAINS_ACCOUNT_INFO)
 
     return True
 
@@ -397,6 +453,20 @@ async def get_current_user(
                         current_span.set_attribute('client.user.role', user.role)
                         current_span.set_attribute('client.auth.type', 'jwt')
 
+                # Single Session Enforcement: a session token's JTI must match the
+                # one stored in the DB (rotated on signin/signup/ldap/oauth/refresh,
+                # cleared on signout). Internally issued service tokens that carry a
+                # 'typ' claim (e.g. automation runs) are exempt — they are signed
+                # server-side and are not user sessions.
+                token_jti = data.get('jti')
+                if token_jti and not data.get('typ'):
+                    user_jti = await Auths.get_user_token_jti_by_id(user.id)
+                    if user_jti != token_jti:
+                        raise HTTPException(
+                            status_code=status.HTTP_401_UNAUTHORIZED,
+                            detail=ERROR_MESSAGES.INVALID_TOKEN,
+                        )
+
                 # Refresh the user's last active timestamp
                 # Fire-and-forget via asyncio.create_task to avoid blocking
                 import asyncio
@@ -485,6 +555,11 @@ def get_verified_user(user=Depends(get_current_user)):
 
 
 def get_admin_user(user=Depends(get_current_user)):
+    if DISABLE_ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=ERROR_MESSAGES.ACCESS_PROHIBITED,
+        )
     if user.role != 'admin':
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

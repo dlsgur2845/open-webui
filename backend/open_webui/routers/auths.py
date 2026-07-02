@@ -169,6 +169,12 @@ async def create_session_response(
         expires_delta=expires_delta,
     )
 
+    # Single Session Enforcement: store this token's JTI as the only valid one,
+    # invalidating any previously issued session token for this user.
+    decoded = decode_token(token)
+    if decoded and 'jti' in decoded:
+        await Auths.update_user_token_jti_by_id(user.id, decoded['jti'], db=db)
+
     if set_cookie and response:
         datetime_expires_at = datetime.datetime.fromtimestamp(expires_at, datetime.timezone.utc) if expires_at else None
         max_age = int(expires_delta.total_seconds()) if expires_delta else None
@@ -203,6 +209,7 @@ async def create_session_response(
         'role': user.role,
         'profile_image_url': f'/api/v1/users/{user.id}/profile/image',
         'permissions': user_permissions,
+        'server_timestamp': int(time.time()),
     }
 
 
@@ -214,6 +221,7 @@ async def create_session_response(
 class SessionUserResponse(Token, UserProfileImageResponse):
     expires_at: int | None = None
     permissions: dict | None = None
+    server_timestamp: int | None = None
 
 
 class SessionUserInfoResponse(SessionUserResponse, UserStatus):
@@ -282,9 +290,69 @@ async def get_session_user(
         'status_message': user.status_message,
         'status_expires_at': user.status_expires_at,
         'permissions': user_permissions,
+        'server_timestamp': int(time.time()),
     }
 
     return response_data
+
+
+############################
+# RefreshSession
+############################
+
+
+@router.post('/refresh', response_model=SessionUserResponse)
+async def refresh_session(
+    request: Request,
+    response: Response,
+    user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_session),
+):
+    """
+    Issue a fresh token for an already-authenticated session (sliding session).
+    Rotates the stored JTI, so the previous token is invalidated immediately.
+    """
+    expires_delta = parse_duration(await Config.get('auth.jwt_expiry'))
+    expires_at = None
+    if expires_delta:
+        expires_at = int(time.time()) + int(expires_delta.total_seconds())
+
+    token = create_token(
+        data={'id': user.id},
+        expires_delta=expires_delta,
+    )
+
+    # Single Session Enforcement: rotate the stored JTI to the new token
+    decoded = decode_token(token)
+    if decoded and 'jti' in decoded:
+        await Auths.update_user_token_jti_by_id(user.id, decoded['jti'], db=db)
+
+    datetime_expires_at = datetime.datetime.fromtimestamp(expires_at, datetime.timezone.utc) if expires_at else None
+    max_age = int(expires_delta.total_seconds()) if expires_delta else None
+    response.set_cookie(
+        key='token',
+        value=token,
+        expires=datetime_expires_at,
+        httponly=True,
+        samesite=WEBUI_AUTH_COOKIE_SAME_SITE,
+        secure=WEBUI_AUTH_COOKIE_SECURE,
+        **({'max_age': max_age} if max_age is not None else {}),
+    )
+
+    user_permissions = await get_permissions(user.id, await Config.get('user.permissions'), db=db)
+
+    return {
+        'token': token,
+        'token_type': 'Bearer',
+        'expires_at': expires_at,
+        'id': user.id,
+        'email': user.email,
+        'name': user.name,
+        'role': user.role,
+        'profile_image_url': user.profile_image_url,
+        'permissions': user_permissions,
+        'server_timestamp': int(time.time()),
+    }
 
 
 ############################
@@ -378,7 +446,10 @@ async def update_password(
 
         if user:
             try:
-                validate_password(form_data.new_password)
+                validate_password(
+                    form_data.new_password,
+                    {'email': session_user.email, 'name': session_user.name},
+                )
             except Exception as e:
                 raise HTTPException(400, detail=str(e))
             hashed = await get_password_hash(form_data.new_password)
@@ -846,7 +917,10 @@ async def signup(
 
     try:
         try:
-            validate_password(form_data.password)
+            validate_password(
+                form_data.password,
+                {'email': form_data.email, 'name': form_data.name},
+            )
         except Exception as e:
             raise HTTPException(400, detail=str(e))
 
@@ -892,6 +966,14 @@ async def signout(request: Request, response: Response, db: AsyncSession = Depen
         if data and data.get('id'):
             actor = await Users.get_user_by_id(data['id'], db=db)
         await invalidate_token(request, token)
+
+        # Single Session Enforcement: clear the stored JTI so the token
+        # cannot be reused after signout.
+        try:
+            if data and data.get('id'):
+                await Auths.update_user_token_jti_by_id(data['id'], None, db=db)
+        except Exception as e:
+            log.error(f'Error clearing JTI on signout: {e}')
         await publish_event(
             request,
             EVENTS.AUTH_LOGOUT,
@@ -1030,7 +1112,10 @@ async def add_user(
 
     try:
         try:
-            validate_password(form_data.password)
+            validate_password(
+                form_data.password,
+                {'email': form_data.email, 'name': form_data.name},
+            )
         except Exception as e:
             raise HTTPException(400, detail=str(e))
 

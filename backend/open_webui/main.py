@@ -79,6 +79,7 @@ from open_webui.env import (
     BYPASS_MODEL_ACCESS_CONTROL,
     CHANGELOG,
     DEPLOYMENT_ID,
+    DISABLE_ADMIN,
     ENABLE_AUDIT_GET_REQUESTS,
     ENABLE_COMPRESSION_MIDDLEWARE,
     ENABLE_CUSTOM_MODEL_FALLBACK,
@@ -220,6 +221,7 @@ from open_webui.utils.chat import (
 )
 from open_webui.utils.embeddings import generate_embeddings
 from open_webui.utils.logger import start_logger
+from open_webui.utils.misc import parse_duration
 from open_webui.utils.middleware import (
     background_tasks_handler,
     build_chat_response_context,
@@ -347,6 +349,23 @@ async def lifespan(app: FastAPI):
 
     asyncio.create_task(periodic_usage_pool_cleanup())
     asyncio.create_task(periodic_session_pool_cleanup())
+
+    # Automatic chat deletion (data retention policy)
+    async def periodic_chat_deletion():
+        while True:
+            if await Config.get('chat.delete.enable'):
+                try:
+                    days = int(await Config.get('chat.delete.days'))
+                    count = await Chats.delete_chats_older_than(days)
+                    if count > 0:
+                        log.info(f'Deleted {count} old chats')
+                except Exception as e:
+                    log.error(f'Error in periodic chat deletion: {e}')
+
+            # Check every hour
+            await asyncio.sleep(60 * 60)
+
+    asyncio.create_task(periodic_chat_deletion())
 
     from open_webui.utils.automations import scheduler_worker_loop
 
@@ -1865,6 +1884,10 @@ async def get_app_config(request: Request):
         'calendar.enable',
         'automations.enable',
         'notes.enable',
+        'ui.enable_image_capture',
+        'ui.enable_webpage_attachment',
+        'ui.enable_user_personal_info',
+        'auth.jwt_expiry',
         'web.search.enable',
         'web.search.confirmation.enable',
         'web.search.confirmation.content',
@@ -1917,6 +1940,7 @@ async def get_app_config(request: Request):
             'enable_signup': config.get('ui.enable_signup'),
             'enable_login_form': config.get('ui.enable_login_form'),
             'enable_websocket': ENABLE_WEBSOCKET_SUPPORT,
+            'disable_admin': DISABLE_ADMIN,
             # --- Authenticated: only consumed by logged-in frontend ---
             **(
                 {
@@ -1933,6 +1957,14 @@ async def get_app_config(request: Request):
                     'enable_calendar': config.get('calendar.enable'),
                     'enable_automations': config.get('automations.enable'),
                     'enable_notes': config.get('notes.enable'),
+                    'enable_image_capture': config.get('ui.enable_image_capture'),
+                    'enable_webpage_attachment': config.get('ui.enable_webpage_attachment'),
+                    'enable_user_personal_info': config.get('ui.enable_user_personal_info'),
+                    'jwt_expires_in': (
+                        f'{parse_duration(config.get("auth.jwt_expiry")).total_seconds()}'
+                        if parse_duration(config.get('auth.jwt_expiry'))
+                        else '0'
+                    ),
                     'enable_web_search': config.get('web.search.enable'),
                     'enable_web_search_confirmation': config.get('web.search.confirmation.enable'),
                     'web_search_confirmation_content': config.get('web.search.confirmation.content'),

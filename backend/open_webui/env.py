@@ -728,6 +728,9 @@ WEBUI_AUTH_TRUSTED_ROLE_HEADER = os.getenv('WEBUI_AUTH_TRUSTED_ROLE_HEADER', Non
 # checks the custom header instead and avoids the 401 short-circuit.
 CUSTOM_API_KEY_HEADER = os.getenv('CUSTOM_API_KEY_HEADER', 'x-api-key')
 
+# Block every admin API (get_admin_user dependency) at the server level
+DISABLE_ADMIN = os.getenv('DISABLE_ADMIN', 'False').lower() == 'true'
+
 ENABLE_PASSWORD_VALIDATION = os.getenv('ENABLE_PASSWORD_VALIDATION', 'False').lower() == 'true'
 PASSWORD_HASH_ALGORITHM = os.getenv('PASSWORD_HASH_ALGORITHM', 'bcrypt').lower()
 PASSWORD_VALIDATION_REGEX_PATTERN = os.getenv(
@@ -744,6 +747,13 @@ except Exception as e:
     PASSWORD_VALIDATION_REGEX_PATTERN = re.compile(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\w\s]).{8,}$')
 
 PASSWORD_VALIDATION_HINT = os.getenv('PASSWORD_VALIDATION_HINT', '')
+
+# Comma-separated list of strings that may not appear in passwords
+PASSWORD_BLACKLIST = [
+    item.strip()
+    for item in os.getenv('PASSWORD_BLACKLIST', 'password,123456,admin,test').split(',')
+    if item.strip()
+]
 
 
 BYPASS_MODEL_ACCESS_CONTROL = os.getenv('BYPASS_MODEL_ACCESS_CONTROL', 'False').lower() == 'true'

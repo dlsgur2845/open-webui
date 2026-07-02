@@ -639,7 +639,10 @@ async def update_user_by_id(
 
         if form_data.password:
             try:
-                validate_password(form_data.password)
+                validate_password(
+                    form_data.password,
+                    {'email': user.email, 'name': user.name},
+                )
             except Exception as e:
                 raise HTTPException(400, detail=str(e))
 

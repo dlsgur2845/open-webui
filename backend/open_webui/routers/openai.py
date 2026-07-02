@@ -408,20 +408,12 @@ async def speech(request: Request, user=Depends(get_verified_user)):
             return FileResponse(file_path)
 
         except Exception as e:
+            # Log the original error but return a generic message to the client
             log.exception(e)
-
-            detail = None
-            if r is not None:
-                try:
-                    res = await r.json()
-                    if 'error' in res:
-                        detail = f'External: {res["error"]}'
-                except Exception:
-                    detail = f'External: {e}'
 
             raise HTTPException(
                 status_code=r.status if r else 500,
-                detail=detail if detail else 'Open WebUI: Server Connection Error',
+                detail='An error occurred. Please contact the administrator.',
             )
 
     except ValueError:
@@ -761,18 +753,19 @@ async def verify_connection(
                         response_data = await r.text()
 
                     if r.status != 200:
+                        # Verification failures are reported with a unified 400 status
                         if isinstance(response_data, (dict, list)):
-                            return JSONResponse(status_code=r.status, content=response_data)
+                            return JSONResponse(status_code=400, content=response_data)
                         else:
-                            return PlainTextResponse(status_code=r.status, content=response_data)
+                            return PlainTextResponse(status_code=400, content=response_data)
 
                     return response_data
             elif is_anthropic_url(url):
                 result = await get_anthropic_models(url, key)
                 if result is None:
-                    raise HTTPException(status_code=500, detail=ERROR_MESSAGES.SERVER_CONNECTION_ERROR)
+                    raise HTTPException(status_code=400, detail=ERROR_MESSAGES.SERVER_CONNECTION_ERROR)
                 if 'error' in result:
-                    raise HTTPException(status_code=500, detail=result['error'])
+                    raise HTTPException(status_code=400, detail=result['error'])
                 return result
             else:
                 async with session.get(
@@ -787,13 +780,16 @@ async def verify_connection(
                         response_data = await r.text()
 
                     if r.status != 200:
+                        # Verification failures are reported with a unified 400 status
                         if isinstance(response_data, (dict, list)):
-                            return JSONResponse(status_code=r.status, content=response_data)
+                            return JSONResponse(status_code=400, content=response_data)
                         else:
-                            return PlainTextResponse(status_code=r.status, content=response_data)
+                            return PlainTextResponse(status_code=400, content=response_data)
 
                     return response_data
 
+        except HTTPException:
+            raise
         except aiohttp.ClientError as e:
             # ClientError covers all aiohttp requests issues
             log.exception(f'Client error: {str(e)}')
@@ -1289,7 +1285,11 @@ async def generate_chat_completion(
                         requested_model=requested_model,
                         upstream_error=error_json,
                     )
-                    return JSONResponse(status_code=r.status, content=error_json)
+                    # Do not expose the upstream error body to the client
+                    return JSONResponse(
+                        status_code=r.status,
+                        content={'detail': 'An error occurred. Please contact the administrator.'},
+                    )
                 except json.JSONDecodeError:
                     await publish_model_provider_request_failed(
                         request,
@@ -1303,7 +1303,7 @@ async def generate_chat_completion(
                     )
                     return JSONResponse(
                         status_code=r.status,
-                        content={'error': {'message': error_body, 'code': r.status}},
+                        content={'detail': 'An error occurred. Please contact the administrator.'},
                     )
 
             streaming = True
@@ -1330,10 +1330,12 @@ async def generate_chat_completion(
                     requested_model=requested_model,
                     upstream_error=response,
                 )
-                if isinstance(response, (dict, list)):
-                    return JSONResponse(status_code=r.status, content=response)
-                else:
-                    return PlainTextResponse(status_code=r.status, content=response)
+                # Log the upstream error but return a generic message to the client
+                log.error(f'OpenAI Error ({r.status}): {response}')
+                return JSONResponse(
+                    status_code=r.status,
+                    content={'detail': 'An error occurred. Please contact the administrator.'},
+                )
 
             # Convert Responses API result to simple format
             if is_responses and isinstance(response, dict):
@@ -1345,7 +1347,7 @@ async def generate_chat_completion(
 
         raise HTTPException(
             status_code=r.status if r else 500,
-            detail=ERROR_MESSAGES.SERVER_CONNECTION_ERROR,
+            detail='An error occurred. Please contact the administrator.',
         )
     finally:
         if not streaming:
@@ -1441,17 +1443,19 @@ async def embeddings(request: Request, form_data: dict, user):
                     requested_model=requested_model,
                     upstream_error=response_data,
                 )
-                if isinstance(response_data, (dict, list)):
-                    return JSONResponse(status_code=r.status, content=response_data)
-                else:
-                    return PlainTextResponse(status_code=r.status, content=response_data)
+                # Log the upstream error but return a generic message to the client
+                log.error(f'OpenAI Error ({r.status}): {response_data}')
+                return JSONResponse(
+                    status_code=r.status,
+                    content={'detail': 'An error occurred. Please contact the administrator.'},
+                )
 
             return response_data
     except Exception as e:
         log.exception(e)
         raise HTTPException(
             status_code=r.status if r else 500,
-            detail=ERROR_MESSAGES.SERVER_CONNECTION_ERROR,
+            detail='An error occurred. Please contact the administrator.',
         )
     finally:
         if not streaming:
@@ -1567,10 +1571,12 @@ async def responses(
                     requested_model=payload.get('model'),
                     upstream_error=response_data,
                 )
-                if isinstance(response_data, (dict, list)):
-                    return JSONResponse(status_code=r.status, content=response_data)
-                else:
-                    return PlainTextResponse(status_code=r.status, content=response_data)
+                # Log the upstream error but return a generic message to the client
+                log.error(f'OpenAI Error ({r.status}): {response_data}')
+                return JSONResponse(
+                    status_code=r.status,
+                    content={'detail': 'An error occurred. Please contact the administrator.'},
+                )
 
             return response_data
 
@@ -1580,7 +1586,7 @@ async def responses(
         log.exception(e)
         raise HTTPException(
             status_code=r.status if r else 500,
-            detail=ERROR_MESSAGES.SERVER_CONNECTION_ERROR,
+            detail='An error occurred. Please contact the administrator.',
         )
     finally:
         if not streaming:
@@ -1688,10 +1694,12 @@ async def proxy(path: str, request: Request, user=Depends(get_verified_user)):
                     requested_model=model_id,
                     upstream_error=response_data,
                 )
-                if isinstance(response_data, (dict, list)):
-                    return JSONResponse(status_code=r.status, content=response_data)
-                else:
-                    return PlainTextResponse(status_code=r.status, content=response_data)
+                # Log the upstream error but return a generic message to the client
+                log.error(f'OpenAI Error ({r.status}): {response_data}')
+                return JSONResponse(
+                    status_code=r.status,
+                    content={'detail': 'An error occurred. Please contact the administrator.'},
+                )
 
             return response_data
 
@@ -1701,7 +1709,7 @@ async def proxy(path: str, request: Request, user=Depends(get_verified_user)):
         log.exception(e)
         raise HTTPException(
             status_code=r.status if r else 500,
-            detail='Open WebUI: Server Connection Error',
+            detail='An error occurred. Please contact the administrator.',
         )
     finally:
         if not streaming:

@@ -317,9 +317,10 @@ async def upload_file_handler(
             allowed_file_extensions = [ext for ext in allowed_file_extensions if ext]
 
             if file_extension not in allowed_file_extensions:
+                # Do not echo the extension/allowlist back to the client
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=ERROR_MESSAGES.DEFAULT(f'File type {file_extension} is not allowed'),
+                    detail=ERROR_MESSAGES.FILE_NOT_SUPPORTED,
                 )
 
         # Prefer readable storage names for admins, but fall back if the filesystem rejects it.

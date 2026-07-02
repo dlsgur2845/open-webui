@@ -142,7 +142,12 @@ async def send_request(
                     upstream_error=res,
                 )
                 if 'error' in res:
-                    raise HTTPException(status_code=r.status, detail=res['error'])
+                    # Log the upstream error but do not expose it to the client
+                    log.error(f'Ollama Error: {res["error"]}')
+                    raise HTTPException(
+                        status_code=r.status,
+                        detail='An error occurred. Please contact the administrator.',
+                    )
             except HTTPException:
                 raise
             except Exception as e:
@@ -156,7 +161,7 @@ async def send_request(
                 )
             raise HTTPException(
                 status_code=r.status,
-                detail=ERROR_MESSAGES.SERVER_CONNECTION_ERROR,
+                detail='An error occurred. Please contact the administrator.',
             )
 
         r.raise_for_status()
@@ -181,9 +186,11 @@ async def send_request(
     except HTTPException:
         raise
     except Exception as e:
+        # Log the original error but return a generic message to the client
+        log.error(f'Ollama: {e}')
         raise HTTPException(
             status_code=r.status if r else 500,
-            detail=f'Ollama: {e}' if str(e) else ERROR_MESSAGES.SERVER_CONNECTION_ERROR,
+            detail='An error occurred. Please contact the administrator.',
         )
     finally:
         if not streaming:
@@ -268,15 +275,18 @@ async def verify_connection(
                 res = await r.json()
                 if 'error' in res:
                     detail = f'External Error: {res["error"]}'
-                raise Exception(detail)
+                # Verification failures are reported with a unified 400 status
+                raise HTTPException(status_code=400, detail=detail)
 
             return await r.json()
+    except HTTPException:
+        raise
     except aiohttp.ClientError as exc:
         log.exception(f'Client error: {exc}')
-        raise HTTPException(status_code=500, detail=ERROR_MESSAGES.SERVER_CONNECTION_ERROR)
+        raise HTTPException(status_code=400, detail=ERROR_MESSAGES.SERVER_CONNECTION_ERROR)
     except Exception as exc:
         log.exception(f'Unexpected error: {exc}')
-        raise HTTPException(status_code=500, detail=f'Unexpected error: {exc}')
+        raise HTTPException(status_code=400, detail='An error occurred. Please contact the administrator.')
 
 
 @router.get('/config')

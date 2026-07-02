@@ -31,6 +31,7 @@ class Auth(Base):  # credential ↔ user linkage
     email = Column(String)  # login address, kept in sync with User.email
     password = Column(Text)  # argon2 / bcrypt hash
     active = Column(Boolean)  # account soft-disable toggle
+    token_jti = Column(String, nullable=True)  # currently valid JWT ID (single session enforcement)
 
 
 class AuthModel(BaseModel):
@@ -40,6 +41,7 @@ class AuthModel(BaseModel):
     email: str
     password: str
     active: bool = True
+    token_jti: Optional[str] = None
 
 
 class Token(BaseModel):
@@ -221,6 +223,37 @@ class AuthsTable:
             auth_row.password = new_password
             await session.commit()
             return True
+
+    async def update_user_token_jti_by_id(
+        self,
+        user_id: str,
+        token_jti: str | None,
+        db: AsyncSession | None = None,
+    ) -> bool:
+        """Store the currently valid JWT ID for single-session enforcement."""
+        try:
+            async with get_async_db_context(db) as session:
+                auth_row = await session.get(Auth, user_id)
+                if auth_row is None:
+                    return False
+                auth_row.token_jti = token_jti
+                await session.commit()
+                return True
+        except Exception:
+            return False
+
+    async def get_user_token_jti_by_id(
+        self,
+        user_id: str,
+        db: AsyncSession | None = None,
+    ) -> str | None:
+        """Return the currently valid JWT ID stored for the user, if any."""
+        try:
+            async with get_async_db_context(db) as session:
+                auth_row = await session.get(Auth, user_id)
+                return auth_row.token_jti if auth_row else None
+        except Exception:
+            return None
 
     async def delete_auth_by_id(
         self,

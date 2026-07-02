@@ -83,7 +83,7 @@ from open_webui.models.groups import GroupForm, GroupModel, Groups, GroupUpdateF
 from open_webui.models.oauth_sessions import OAuthSessions
 from open_webui.models.users import Users
 from open_webui.retrieval.web.utils import validate_url
-from open_webui.utils.auth import create_token, get_password_hash
+from open_webui.utils.auth import create_token, decode_token, get_password_hash
 from open_webui.utils.groups import apply_default_group_assignment
 from open_webui.utils.misc import parse_duration
 from open_webui.utils.validate import validate_profile_image_url
@@ -1945,6 +1945,13 @@ class OAuthManager:
                 data={'id': user.id},
                 expires_delta=parse_duration(auth_config.JWT_EXPIRES_IN),
             )
+
+            # Single Session Enforcement: store this token's JTI as the only
+            # valid one, so OAuth logins pass the JTI check in get_current_user.
+            decoded = decode_token(jwt_token)
+            if decoded and 'jti' in decoded:
+                await Auths.update_user_token_jti_by_id(user.id, decoded['jti'])
+
             if auth_config.ENABLE_OAUTH_GROUP_MANAGEMENT:
                 await self.update_user_groups(
                     user=user,

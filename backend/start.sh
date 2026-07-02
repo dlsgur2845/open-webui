@@ -94,6 +94,12 @@ if [[ -n "${SPACE_ID:-}" ]]; then
   export WEBUI_URL="${SPACE_HOST}"
 fi
 
+# ── Database migrations ──────────────────────────────────────────────────────
+
+# Run migrations explicitly before serving traffic. The app also runs them at
+# startup, but this guarantees the custom token_jti migration is applied first.
+WEBUI_SECRET_KEY="${WEBUI_SECRET_KEY:-}" alembic -c open_webui/alembic.ini upgrade head
+
 # ── Launch uvicorn ───────────────────────────────────────────────────────────
 
 PYTHON_CMD=$(command -v python3 || command -v python)

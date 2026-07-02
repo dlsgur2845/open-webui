@@ -1918,6 +1918,30 @@ class ChatTable:
         except Exception:
             return False
 
+    async def delete_chats_older_than(self, days: int, db: AsyncSession | None = None) -> int:
+        """
+        Bulk-delete chats whose last update is older than the retention window
+        (data retention policy). Returns the number of deleted chats.
+        """
+        from open_webui.models.shared_chats import SharedChat
+
+        try:
+            async with get_async_db_context(db) as session:
+                cutoff_time = int(time.time()) - (days * 24 * 60 * 60)
+                chat_ids_stmt = select(Chat.id).filter(Chat.updated_at < cutoff_time)
+
+                await session.execute(
+                    update(AutomationRun).filter(AutomationRun.chat_id.in_(chat_ids_stmt)).values(chat_id=None)
+                )
+                await session.execute(delete(ChatMessage).filter(ChatMessage.chat_id.in_(chat_ids_stmt)))
+                await session.execute(delete(SharedChat).filter(SharedChat.chat_id.in_(chat_ids_stmt)))
+                result = await session.execute(delete(Chat).filter(Chat.updated_at < cutoff_time))
+                await session.commit()
+                return result.rowcount or 0
+        except Exception:
+            log.exception('Failed to delete chats older than %s days', days)
+            return 0
+
     async def move_chats_by_user_id_and_folder_id(
         self,
         user_id: str,

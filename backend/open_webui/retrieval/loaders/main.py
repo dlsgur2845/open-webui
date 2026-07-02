@@ -146,6 +146,7 @@ class TikaLoader:
         self.extract_images = extract_images
 
     def load(self) -> list[Document]:
+        log.info(f'Starting Tika extraction for file: {self.file_path}')
         with open(self.file_path, 'rb') as f:
             data = f.read()
 
@@ -160,12 +161,21 @@ class TikaLoader:
         endpoint = self.url
         if not endpoint.endswith('/'):
             endpoint += '/'
-        endpoint += 'tika/text'
+        endpoint += 'rmeta/text'
 
-        r = requests.put(endpoint, data=data, headers=headers, verify=REQUESTS_VERIFY)
+        log.debug(f'Tika endpoint: {endpoint}')
+        try:
+            r = requests.put(endpoint, data=data, headers=headers, verify=REQUESTS_VERIFY)
+        except Exception as e:
+            log.error(f'Failed to connect to Tika at {endpoint}: {e}')
+            raise e
 
         if r.ok:
             raw_metadata = r.json()
+            # rmeta/text returns an array, take the first element
+            if isinstance(raw_metadata, list) and len(raw_metadata) > 0:
+                raw_metadata = raw_metadata[0]
+
             text = raw_metadata.get('X-TIKA:content', '<No text content found>').strip()
 
             if 'Content-Type' in raw_metadata:
@@ -175,7 +185,8 @@ class TikaLoader:
 
             return [Document(page_content=text, metadata=headers)]
         else:
-            raise Exception(f'Error calling Tika: {r.reason}')
+            log.error(f'Error calling Tika: {r.status_code} {r.reason} - {r.text}')
+            raise Exception(f'Error calling Tika: {r.status_code} {r.reason} - {r.text}')
 
 
 class DoclingLoader:
@@ -431,11 +442,13 @@ class Loader:
             )
         elif self.engine == 'tika' and self.kwargs.get('TIKA_SERVER_URL'):
             if self._is_text_file(file_ext, file_content_type):
+                log.debug('Falling back to TextLoader for text file (Tika configured)')
                 loader = TextLoader(file_path, encoding=self._detect_text_encoding(file_path))
             else:
                 loader = TikaLoader(
                     url=self.kwargs.get('TIKA_SERVER_URL'),
                     file_path=file_path,
+                    mime_type=file_content_type,
                     extract_images=self.kwargs.get('PDF_EXTRACT_IMAGES'),
                 )
         elif (
