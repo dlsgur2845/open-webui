@@ -12,6 +12,7 @@
 	import ArrowPath from '$lib/components/icons/ArrowPath.svelte';
 	import GlobeAlt from '$lib/components/icons/GlobeAlt.svelte';
 
+	import { config } from '$lib/stores';
 	const i18n = getContext('i18n');
 
 	export let onClose: Function = () => {};
@@ -97,6 +98,7 @@
 				</DropdownMenu.Item>
 			</Tooltip>
 
+			{#if $config?.features?.enable_webpage_attachment ?? true}
 			<DropdownMenu.Item
 				class="flex gap-2 items-center px-3 py-1.5 text-sm  cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800  rounded-xl"
 				on:click={() => {
@@ -106,6 +108,7 @@
 				<GlobeAlt strokeWidth="2" />
 				<div class="flex items-center">{$i18n.t('Add webpage')}</div>
 			</DropdownMenu.Item>
+			{/if}
 
 			<DropdownMenu.Item
 				class="flex gap-2 items-center px-3 py-1.5 text-sm  cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800  rounded-xl"
