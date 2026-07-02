@@ -30,11 +30,20 @@ export const uploadFile = async (
 		body: data
 	})
 		.then(async (res) => {
-			if (!res.ok) throw await res.json();
+			if (!res.ok) {
+				let errorData;
+				try {
+					errorData = await res.json();
+				} catch {
+					// JSON 파싱 실패 시 (HTML 응답 등)
+					throw { detail: '서버 오류가 발생했습니다. 관리자에게 문의하세요.' };
+				}
+				throw errorData;
+			}
 			return res.json();
 		})
 		.catch((err) => {
-			error = err.detail || err.message;
+			error = err.detail || err.message || '파일 업로드 중 오류가 발생했습니다.';
 			console.error(err);
 			return null;
 		});

@@ -13,7 +13,7 @@
 	let loaded = false;
 
 	onMount(async () => {
-		if ($user?.role !== 'admin') {
+		if ($user?.role !== 'admin' || $config?.features?.disable_admin) {
 			await goto('/');
 		}
 		loaded = true;

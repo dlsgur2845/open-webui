@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { toast } from 'svelte-sonner';
-	import { onMount, tick, getContext } from 'svelte';
+	import { onMount, onDestroy, tick, getContext } from 'svelte';
 	import { openDB, deleteDB } from 'idb';
 	import fileSaver from 'file-saver';
 	const { saveAs } = fileSaver;
@@ -14,6 +14,7 @@
 	import { getBanners } from '$lib/apis/configs';
 	import { getTerminalServers } from '$lib/apis/terminal';
 	import { getUserSettings } from '$lib/apis/users';
+	import { refreshSession, userSignOut } from '$lib/apis/auths';
 	import { setTextScale } from '$lib/utils/text-scale';
 
 	import { WEBUI_VERSION, WEBUI_API_BASE_URL } from '$lib/constants';
@@ -44,11 +45,34 @@
 
 	import Sidebar from '$lib/components/layout/Sidebar.svelte';
 	import SettingsModal from '$lib/components/chat/SettingsModal.svelte';
-	import ChangelogModal from '$lib/components/ChangelogModal.svelte';
+	// import ChangelogModal from '$lib/components/ChangelogModal.svelte';
+	import AgreementModal from '$lib/components/AgreementModal.svelte';
 	import AccountPending from '$lib/components/layout/Overlay/AccountPending.svelte';
+	import SessionTimeoutModal from '$lib/components/layout/Overlay/SessionTimeoutModal.svelte';
 	import UpdateInfoToast from '$lib/components/layout/UpdateInfoToast.svelte';
 	import Spinner from '$lib/components/common/Spinner.svelte';
+	import ArrowPath from '$lib/components/icons/ArrowPath.svelte';
 	import { Shortcut, shortcuts } from '$lib/shortcuts';
+
+	let showTimeoutModal = false;
+	let showAgreement = false;
+
+	// Activity Monitor & Token Refresh State
+	let lastActive = Date.now();
+	let lastRefresh = Date.now();
+	let clockSkew = 0;
+	let tokenDuration = 60 * 60; // Default 1 hour
+
+	// Auto refresh on user activity (sliding session)
+	const ACTIVITY_REFRESH_WINDOW = 60 * 1000; // ms - user counts as "active" if an action happened within this window
+	const MIN_AUTO_REFRESH_INTERVAL = 10 * 1000; // ms - minimum gap between auto refresh attempts (spaces out retries on failure)
+	let autoRefreshInFlight = false;
+	let lastAutoRefreshAttempt = 0;
+	let timerInterval: ReturnType<typeof setInterval> | null = null;
+	// Tokens live in sessionStorage (per tab) while the backend enforces a single
+	// JTI per user, so a refresh in one tab invalidates every other tab's token.
+	// Broadcast refreshed tokens so all tabs stay on the current one.
+	let sessionChannel: BroadcastChannel | null = null;
 
 	const i18n = getContext('i18n');
 
@@ -195,6 +219,73 @@
 		tools.set(toolsData);
 	};
 
+	// Helper functions defined at top-level
+	const updateLastActive = () => {
+		lastActive = Date.now();
+	};
+
+	const calculateClockSkew = (serverTimestamp: number) => {
+		if (serverTimestamp) {
+			const now = Math.floor(Date.now() / 1000);
+			clockSkew = now - serverTimestamp;
+			console.log('Clock skew:', clockSkew);
+		}
+	};
+
+	const adoptRefreshedToken = (res: any) => {
+		sessionStorage.token = res.token;
+		if (res.expires_at) {
+			user.update((u: any) => ({ ...u, expires_at: res.expires_at }));
+
+			if (res.server_timestamp) {
+				tokenDuration = res.expires_at - res.server_timestamp;
+			}
+		}
+		if (res.server_timestamp) {
+			calculateClockSkew(res.server_timestamp);
+		}
+		lastRefresh = Date.now();
+		showTimeoutModal = false;
+	};
+
+	// Coalesce concurrent callers (timer, manual button, modal extend) onto one
+	// request: the backend rotates the JTI on every refresh, so parallel refreshes
+	// can leave the stored token and the DB JTI out of sync.
+	let refreshPromise: Promise<void> | null = null;
+	const refreshSessionHelper = () => {
+		if (refreshPromise) {
+			return refreshPromise;
+		}
+		refreshPromise = (async () => {
+			if (!sessionStorage.token) {
+				return;
+			}
+			try {
+				const res = await refreshSession(sessionStorage.token);
+				if (res && res.token) {
+					adoptRefreshedToken(res);
+					sessionChannel?.postMessage({
+						type: 'token-refreshed',
+						token: res.token,
+						expires_at: res.expires_at,
+						server_timestamp: res.server_timestamp
+					});
+				}
+			} catch (err: any) {
+				console.error('Refresh failed:', err);
+				if (err?.status === 401) {
+					await localStorage.removeItem('token');
+					await sessionStorage.removeItem('token');
+					await user.set(null);
+					window.location.href = '/auth';
+				}
+			}
+		})().finally(() => {
+			refreshPromise = null;
+		});
+		return refreshPromise;
+	};
+
 	onMount(async () => {
 		if ($user === undefined || $user === null) {
 			await goto('/auth');
@@ -319,10 +410,6 @@
 		};
 		setupKeyboardShortcuts();
 
-		if ($user?.role === 'admin' && ($settings?.showChangelog ?? true)) {
-			showChangelog.set($settings?.version !== $config.version);
-		}
-
 		if ($user?.role === 'admin' || ($user?.permissions?.chat?.temporary ?? true)) {
 			if ($page.url.searchParams.get('temporary-chat') === 'true') {
 				temporaryChatEnabled.set(true);
@@ -364,10 +451,163 @@
 			}
 		});
 
+		// Runs once at mount (config is loaded by the root layout before this mounts);
+		// refreshSessionHelper keeps tokenDuration up to date afterwards.
+		if ($config?.features?.jwt_expires_in) {
+			const configDuration = parseFloat($config.features.jwt_expires_in);
+			if (!isNaN(configDuration) && configDuration > 0) {
+				tokenDuration = configDuration;
+			}
+		}
+
+		if (typeof BroadcastChannel !== 'undefined') {
+			sessionChannel = new BroadcastChannel('session-token');
+			sessionChannel.onmessage = (event: MessageEvent) => {
+				const msg = event.data;
+				if (msg?.type === 'token-refreshed' && msg.token) {
+					adoptRefreshedToken(msg);
+				}
+			};
+		}
+
+		window.addEventListener('mousemove', updateLastActive);
+		window.addEventListener('keydown', updateLastActive);
+		window.addEventListener('click', updateLastActive);
+		window.addEventListener('touchstart', updateLastActive);
+		// capture: true so scrolling inside nested containers (chat list, sidebar) counts too
+		window.addEventListener('scroll', updateLastActive, true);
+
+		// Integrated Timer & Auto Refresh (check every second)
+		timerInterval = setInterval(async () => {
+			if ($user?.expires_at) {
+				// Use server time for calculation: now - clockSkew
+				const currentServerTime = Math.floor(Date.now() / 1000) - clockSkew;
+				const diff = $user.expires_at - currentServerTime;
+
+				const isVisible = document.visibilityState === 'visible';
+				// warningThreshold: When to show the modal
+				// If token duration > 60s, show at 60s remaining.
+				// If token duration <= 60s, show at 10s remaining.
+				const warningThreshold = tokenDuration > 60 ? 60 : 10;
+
+				if (diff <= 0) {
+					if (timerInterval) {
+						clearInterval(timerInterval);
+					}
+					await logoutHandler();
+					return;
+				}
+
+				// Sliding session: while the user is active, renew the token automatically
+				// once it drops below half its lifetime, so only idle sessions ever reach
+				// the timeout modal. The modal stays as a fallback if refresh keeps failing.
+				const isActive = Date.now() - lastActive <= ACTIVITY_REFRESH_WINDOW;
+				const refreshThreshold = Math.max(
+					Math.floor(tokenDuration / 2),
+					warningThreshold + 20
+				);
+				if (isVisible && isActive && diff <= refreshThreshold) {
+					attemptAutoRefresh();
+				}
+
+				if (diff <= warningThreshold) {
+					console.log(
+						`[Timer] Show Modal: diff=${diff}, threshold=${warningThreshold}, isVisible=${isVisible}, showing=${showTimeoutModal}`
+					);
+					if (isVisible && !showTimeoutModal) {
+						showTimeoutModal = true;
+					}
+				} else {
+					if (showTimeoutModal) {
+						showTimeoutModal = false;
+					}
+				}
+
+				modalCountdown = Math.max(0, diff);
+
+				if (diff > 0) {
+					const m = Math.floor(diff / 60);
+					const s = diff % 60;
+					timeRemaining = `로그아웃 ${m}분 ${s}초 남음`;
+					isExpiringSoon = diff < 60;
+				} else {
+					timeRemaining = '만료됨';
+					isExpiringSoon = true;
+				}
+			} else {
+				timeRemaining = '';
+				isExpiringSoon = false;
+			}
+		}, 1000);
+
 		await tick();
+
+		if (!localStorage.getItem('agreedToTerms')) {
+			showAgreement = true;
+		}
 
 		loaded = true;
 	});
+
+	// onMount is async, so a cleanup function returned from it would be ignored —
+	// teardown must live in onDestroy.
+	onDestroy(() => {
+		window.removeEventListener('mousemove', updateLastActive);
+		window.removeEventListener('keydown', updateLastActive);
+		window.removeEventListener('click', updateLastActive);
+		window.removeEventListener('touchstart', updateLastActive);
+		window.removeEventListener('scroll', updateLastActive, true);
+		if (timerInterval) {
+			clearInterval(timerInterval);
+		}
+		sessionChannel?.close();
+	});
+
+	const logoutHandler = async () => {
+		let redirectUrl = '/auth';
+		try {
+			const res = await userSignOut();
+			if (res?.redirect_url) {
+				redirectUrl = res.redirect_url;
+			}
+		} catch (e) {
+			console.error(e);
+		}
+		// Fallback clearing just in case
+		await localStorage.removeItem('token');
+		await sessionStorage.removeItem('token');
+		await user.set(null);
+
+		// Force reload to clear state and ensure clean logout
+		window.location.href = redirectUrl;
+	};
+
+	const attemptAutoRefresh = async () => {
+		if (autoRefreshInFlight) {
+			return;
+		}
+		const now = Date.now();
+		if (now - lastAutoRefreshAttempt < MIN_AUTO_REFRESH_INTERVAL) {
+			return;
+		}
+		lastAutoRefreshAttempt = now;
+		autoRefreshInFlight = true;
+		try {
+			await refreshSessionHelper();
+		} finally {
+			autoRefreshInFlight = false;
+		}
+	};
+
+	let manualRefreshLoading = false;
+	const onManualRefresh = async () => {
+		if (manualRefreshLoading) return;
+		manualRefreshLoading = true;
+		await refreshSessionHelper();
+		setTimeout(() => {
+			manualRefreshLoading = false;
+		}, 10000); // 10s cooldown
+	};
 
 	const checkForVersionUpdates = async () => {
 		version = await getVersionUpdates(sessionStorage.token).catch((error) => {
@@ -377,10 +617,15 @@
 			};
 		});
 	};
+
+	let timeRemaining = '';
+	let isExpiringSoon = false;
+	let modalCountdown = 0;
 </script>
 
 <SettingsModal bind:show={$showSettings} />
-<ChangelogModal bind:show={$showChangelog} />
+<!-- <ChangelogModal bind:show={$showChangelog} /> -->
+<AgreementModal bind:show={showAgreement} />
 
 {#if version && compareVersion(version.latest, version.current) && ($settings?.showUpdateToast ?? true)}
 	<div class=" absolute bottom-8 right-8 z-50" in:fade={{ duration: 100 }}>
@@ -391,6 +636,35 @@
 				version = null;
 			}}
 		/>
+	</div>
+{/if}
+
+{#if timeRemaining}
+	<div
+		class="fixed top-4 right-36 z-[999] flex items-center gap-2 px-3 py-1.5 rounded-full backdrop-blur-md shadow-sm border border-gray-100 dark:border-gray-800 bg-white/80 dark:bg-gray-900/80 transition-all duration-300"
+	>
+		<div
+			class="text-xs font-mono font-medium tabular-nums transition-colors duration-300 {isExpiringSoon
+				? 'text-red-500 animate-pulse'
+				: 'text-gray-600 dark:text-gray-300'}"
+		>
+			{timeRemaining}
+		</div>
+
+		<button
+			class="p-0.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors disabled:opacity-30 disabled:cursor-not-allowed group"
+			on:click={onManualRefresh}
+			disabled={manualRefreshLoading || timeRemaining === '만료됨'}
+			title="세션 연장 (10초 대기)"
+		>
+			<div
+				class={manualRefreshLoading
+					? 'animate-spin'
+					: 'group-hover:rotate-180 transition-transform duration-500'}
+			>
+				<ArrowPath className="size-3.5 text-gray-500 dark:text-gray-400" />
+			</div>
+		</button>
 	</div>
 {/if}
 
@@ -474,6 +748,15 @@
 		</div>
 	</div>
 {/if}
+
+<SessionTimeoutModal
+	bind:show={showTimeoutModal}
+	countdown={modalCountdown}
+	on:extend={async () => {
+		await refreshSessionHelper();
+	}}
+	on:logout={logoutHandler}
+/>
 
 <style>
 	.loading {

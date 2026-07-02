@@ -307,6 +307,11 @@ type Config = {
 		enable_version_update_check: boolean;
 		enable_pyodide_file_persistence?: boolean;
 		folder_max_file_count?: number;
+		jwt_expires_in?: string;
+		enable_image_capture?: boolean;
+		enable_webpage_attachment?: boolean;
+		enable_user_personal_info?: boolean;
+		disable_admin?: boolean;
 	};
 	oauth: {
 		providers: {
@@ -333,4 +338,5 @@ export type SessionUser = {
 	name: string;
 	role: string;
 	profile_image_url: string;
+	expires_at?: number;
 };

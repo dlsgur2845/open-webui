@@ -768,7 +768,7 @@
 		}
 	};
 
-	const TOKEN_EXPIRY_BUFFER = 60; // seconds
+	const TOKEN_EXPIRY_BUFFER = 0; // seconds
 	const resolveFetchUrl = (input) => {
 		if (input instanceof Request) {
 			return new URL(input.url, window.location.origin);
@@ -810,12 +810,12 @@
 		isAuthRedirectInProgress = true;
 		user.set(null);
 		localStorage.removeItem('token');
+		sessionStorage.removeItem('token');
 		toast.error($i18n.t('Session expired. Please sign in again.'));
 
+		// Force clean redirect (full reload) to clear all in-memory state
 		const currentPath = `${window.location.pathname}${window.location.search}`;
-		goto(`/auth?redirect=${encodeURIComponent(currentPath)}`).finally(() => {
-			isAuthRedirectInProgress = false;
-		});
+		window.location.href = `/auth?redirect=${encodeURIComponent(currentPath)}`;
 	};
 
 	const isCurrentSessionUnauthorized = async (originalFetch) => {
@@ -844,6 +844,7 @@
 			const res = await userSignOut();
 			user.set(null);
 			localStorage.removeItem('token');
+			sessionStorage.removeItem('token');
 
 			location.href = res?.redirect_url ?? '/auth';
 		}
@@ -1164,7 +1165,8 @@
 					} else {
 						// Redirect Invalid Session User to /auth Page
 						localStorage.removeItem('token');
-						await goto(`/auth?redirect=${encodedUrl}`);
+						sessionStorage.removeItem('token');
+						window.location.href = `/auth?redirect=${encodedUrl}`;
 					}
 				} else {
 					// Don't redirect if we're already on the auth page

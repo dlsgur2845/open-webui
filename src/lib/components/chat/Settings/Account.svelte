@@ -64,13 +64,13 @@
 			gender: gender ? gender : null,
 			date_of_birth: dateOfBirth ? dateOfBirth : null
 		}).catch((error) => {
-			toast.error(`${error}`);
+			toast.error($i18n.t('Something went wrong. Please contact administrator.'));
 		});
 
 		if (updatedUser) {
 			// Get Session User Info
 			const sessionUser = await getSessionUser(sessionStorage.token).catch((error) => {
-				toast.error(`${error}`);
+				toast.error($i18n.t('Something went wrong. Please contact administrator.'));
 				return null;
 			});
 
@@ -91,7 +91,7 @@
 
 	onMount(async () => {
 		const user = await getSessionUser(sessionStorage.token).catch((error) => {
-			toast.error(`${error}`);
+			toast.error($i18n.t('Something went wrong. Please contact administrator.'));
 			return null;
 		});
 
@@ -171,57 +171,59 @@
 							</div>
 						</div>
 
-						<div class="flex flex-col w-full mt-2">
-							<div class=" mb-1 text-xs font-medium">{$i18n.t('Gender')}</div>
+						{#if $config?.features?.enable_user_personal_info ?? true}
+							<div class="flex flex-col w-full mt-2">
+								<div class=" mb-1 text-xs font-medium">{$i18n.t('Gender')}</div>
 
-							<div class="flex-1">
-								<select
-									class="w-full text-sm dark:text-gray-300 bg-transparent outline-hidden"
-									bind:value={_gender}
-									aria-label={$i18n.t('Gender')}
-									on:change={(e) => {
-										console.log(_gender);
+								<div class="flex-1">
+									<select
+										class="w-full text-sm dark:text-gray-300 bg-transparent outline-hidden"
+										bind:value={_gender}
+										aria-label={$i18n.t('Gender')}
+										on:change={(e) => {
+											console.log(_gender);
 
-										if (_gender === 'custom') {
-											// Handle custom gender input
-											gender = '';
-										} else {
-											gender = _gender;
-										}
-									}}
-								>
-									<option value="" selected>{$i18n.t('Prefer not to say')}</option>
-									<option value="male">{$i18n.t('Male')}</option>
-									<option value="female">{$i18n.t('Female')}</option>
-									<option value="custom">{$i18n.t('Custom')}</option>
-								</select>
+											if (_gender === 'custom') {
+												// Handle custom gender input
+												gender = '';
+											} else {
+												gender = _gender;
+											}
+										}}
+									>
+										<option value="" selected>{$i18n.t('Prefer not to say')}</option>
+										<option value="male">{$i18n.t('Male')}</option>
+										<option value="female">{$i18n.t('Female')}</option>
+										<option value="custom">{$i18n.t('Custom')}</option>
+									</select>
+								</div>
+
+								{#if _gender === 'custom'}
+									<input
+										class="w-full text-sm dark:text-gray-300 bg-transparent outline-hidden mt-1"
+										type="text"
+										required
+										aria-label={$i18n.t('Custom Gender')}
+										placeholder={$i18n.t('Enter your gender')}
+										bind:value={gender}
+									/>
+								{/if}
 							</div>
 
-							{#if _gender === 'custom'}
-								<input
-									class="w-full text-sm dark:text-gray-300 bg-transparent outline-hidden mt-1"
-									type="text"
-									required
-									aria-label={$i18n.t('Custom Gender')}
-									placeholder={$i18n.t('Enter your gender')}
-									bind:value={gender}
-								/>
-							{/if}
-						</div>
+							<div class="flex flex-col w-full mt-2">
+								<div class=" mb-1 text-xs font-medium">{$i18n.t('Birth Date')}</div>
 
-						<div class="flex flex-col w-full mt-2">
-							<div class=" mb-1 text-xs font-medium">{$i18n.t('Birth Date')}</div>
-
-							<div class="flex-1">
-								<input
-									class="w-full text-sm dark:text-gray-300 dark:placeholder:text-gray-300 bg-transparent outline-hidden"
-									type="date"
-									aria-label={$i18n.t('Birth Date')}
-									bind:value={dateOfBirth}
-									required
-								/>
+								<div class="flex-1">
+									<input
+										class="w-full text-sm dark:text-gray-300 dark:placeholder:text-gray-300 bg-transparent outline-hidden"
+										type="date"
+										aria-label={$i18n.t('Birth Date')}
+										bind:value={dateOfBirth}
+										required
+									/>
+								</div>
 							</div>
-						</div>
+						{/if}
 					</div>
 				</div>
 			</div>

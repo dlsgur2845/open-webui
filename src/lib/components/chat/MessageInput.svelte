@@ -690,7 +690,8 @@
 					files = files.filter((item) => item?.itemId !== tempItemId);
 				}
 			} catch (e) {
-				toast.error(`${e}`);
+				console.error('File upload error:', e);
+				toast.error($i18n.t(e));
 				files = files.filter((item) => item?.itemId !== tempItemId);
 			}
 		} else {

@@ -626,6 +626,7 @@
 					const res = await userSignOut();
 					user.set(null);
 					localStorage.removeItem('token');
+					sessionStorage.removeItem('token');
 
 					location.href = res?.redirect_url ?? '/auth';
 					show = false;
