@@ -65,10 +65,52 @@ def _get_engine_connectable():
     )
 
 
+# The 0.6.43-fix2.1 → 0.10.2 port reused revision id 'a1b2c3d4e5f6': it was the
+# token_jti migration (old chain head) but now identifies the skill-table
+# migration mid-chain. Databases stamped by the old fork therefore skip the
+# prompt_history/chat_message/access_grant migrations and crash later with
+# UndefinedTable. 'c440947495f3' (add_chat_file_table) is the last revision such
+# databases actually applied, so restamping there lets the upgrade replay the
+# remainder; the replayed custom migrations are guarded/idempotent.
+LEGACY_FORK_STAMP = 'a1b2c3d4e5f6'
+LEGACY_FORK_RESTAMP = 'c440947495f3'
+
+
+def _fix_legacy_fork_stamp(connectable) -> None:
+    """Restamp databases carried over from the 0.6.43-fix2.1 fork.
+
+    A database legitimately stamped at 'a1b2c3d4e5f6' by the current chain has
+    the skill table (that revision creates it); a legacy-fork database does not,
+    which makes the two cases distinguishable.
+    """
+    from sqlalchemy import inspect, text
+
+    with connectable.connect() as connection:
+        try:
+            stamped = connection.execute(text('SELECT version_num FROM alembic_version')).scalar()
+        except Exception:
+            return  # fresh database — no alembic_version table yet
+        if stamped != LEGACY_FORK_STAMP:
+            return
+        if inspect(connection).has_table('skill'):
+            return
+        logging.getLogger('alembic.env').info(
+            'Legacy fork stamp detected (%s without skill table) — restamping to %s',
+            LEGACY_FORK_STAMP,
+            LEGACY_FORK_RESTAMP,
+        )
+        connection.execute(
+            text('UPDATE alembic_version SET version_num = :revision'),
+            {'revision': LEGACY_FORK_RESTAMP},
+        )
+        connection.commit()
+
+
 def run_migrations_online() -> None:
     """Execute migrations against a live database connection."""
     live_connectable = _get_engine_connectable()
     enable_iam_token_auth(live_connectable)
+    _fix_legacy_fork_stamp(live_connectable)
     with live_connectable.connect() as live_connection:
         alembic.context.configure(
             connection=live_connection,
