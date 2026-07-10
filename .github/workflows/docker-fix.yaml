@@ -3,7 +3,7 @@
 #
 # - linux/amd64, linux/arm64 를 각각 네이티브 러너에서 빌드 (QEMU 불필요)
 # - 두 아치를 하나의 멀티아치 매니페스트로 병합해 GHCR에 push
-#   → ghcr.io/<owner>/open-webui:<branch> (예: 0.10.2-fix1)
+#   → ghcr.io/<owner>/ax/open-webui:<branch> (예: 0.10.2-fix1)
 # - GitHub Release(v<branch>)를 생성/갱신하고 이미지 정보를 릴리즈 노트에 기재
 # - 릴리즈/태그는 GITHUB_TOKEN 으로 생성되므로 docker.yaml 의 v* 태그 트리거를
 #   연쇄 실행시키지 않음 (GitHub Actions 재귀 방지 규칙)
@@ -22,6 +22,8 @@ concurrency:
 
 env:
   REGISTRY: ghcr.io
+  # GHCR 이미지 경로: ghcr.io/<owner>/<IMAGE_PATH> (첫 세그먼트는 계정명 고정)
+  IMAGE_PATH: ax/open-webui
 
 jobs:
   build:
@@ -41,7 +43,7 @@ jobs:
     steps:
       - name: Prepare environment
         run: |
-          echo "FULL_IMAGE_NAME=${REGISTRY}/${GITHUB_REPOSITORY,,}" >> ${GITHUB_ENV}
+          echo "FULL_IMAGE_NAME=${REGISTRY}/${GITHUB_REPOSITORY_OWNER,,}/${IMAGE_PATH}" >> ${GITHUB_ENV}
           platform=${{ matrix.platform.arch }}
           echo "PLATFORM_PAIR=${platform//\//-}" >> ${GITHUB_ENV}
 
@@ -110,7 +112,7 @@ jobs:
     steps:
       - name: Prepare environment
         run: |
-          echo "FULL_IMAGE_NAME=${REGISTRY}/${GITHUB_REPOSITORY,,}" >> ${GITHUB_ENV}
+          echo "FULL_IMAGE_NAME=${REGISTRY}/${GITHUB_REPOSITORY_OWNER,,}/${IMAGE_PATH}" >> ${GITHUB_ENV}
 
       - name: Download digests
         uses: actions/download-artifact@v5
@@ -171,7 +173,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          IMAGE="${REGISTRY}/${GITHUB_REPOSITORY,,}"
+          IMAGE="${REGISTRY}/${GITHUB_REPOSITORY_OWNER,,}/${IMAGE_PATH}"
           TAG="v${GITHUB_REF_NAME}"
 
           # 태그를 항상 현재 빌드 커밋으로 이동 (GITHUB_TOKEN push → 워크플로우 재귀 트리거 없음)
