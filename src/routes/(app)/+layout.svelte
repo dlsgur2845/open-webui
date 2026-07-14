@@ -305,6 +305,16 @@
 			return;
 		}
 
+		// 로그인/세션 응답의 server_timestamp로 시계 차이를 즉시 보정한다.
+		// 첫 토큰 갱신 전까지 clockSkew=0이면, 서버 시계가 브라우저보다 느릴 때
+		// 아래 1초 타이머가 만료로 오판해 로그인 직후 바로 로그아웃되는 문제가 있었다.
+		if ($user?.server_timestamp) {
+			calculateClockSkew($user.server_timestamp);
+			if ($user?.expires_at) {
+				tokenDuration = $user.expires_at - $user.server_timestamp;
+			}
+		}
+
 		clearChatInputStorage();
 		await Promise.all([
 			checkLocalDBChats(),

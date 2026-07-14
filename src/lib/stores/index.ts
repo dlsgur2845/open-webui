@@ -339,4 +339,5 @@ export type SessionUser = {
 	role: string;
 	profile_image_url: string;
 	expires_at?: number;
+	server_timestamp?: number; // 응답 생성 시점의 서버 시간 (시계 차이 보정용)
 };
