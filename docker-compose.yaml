@@ -14,7 +14,7 @@ services:
       - 'WEBUI_SECRET_KEY='
       - 'DISABLE_ADMIN=false'
       - 'CHAT_DELETE_ENABLED=true'
-      - 'CHAT_DELETE_DAYS=1'
+      - 'CHAT_DELETE_DAYS=365'
       - 'ENABLE_PASSWORD_VALIDATION=true'
       - 'PASSWORD_BLACKLIST=kftc,admin'
       - 'ENABLE_IMAGE_CAPTURE=true'
