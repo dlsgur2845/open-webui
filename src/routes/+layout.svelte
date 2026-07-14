@@ -769,6 +769,8 @@
 	};
 
 	const TOKEN_EXPIRY_BUFFER = 0; // seconds
+	let unwrappedFetch = null; // onMount에서 씌우는 401 리다이렉트 래퍼를 거치지 않는 원본 fetch
+
 	const resolveFetchUrl = (input) => {
 		if (input instanceof Request) {
 			return new URL(input.url, window.location.origin);
@@ -841,6 +843,12 @@
 		}
 
 		if (now >= exp - TOKEN_EXPIRY_BUFFER) {
+			// expires_at은 서버 시계 기준이므로, 서버-클라이언트 시계 차이 때문에
+			// 유효한 세션이 끊기지 않도록 로그아웃 전에 서버에 실제 만료 여부를 확인한다.
+			if (!(await isCurrentSessionUnauthorized(unwrappedFetch ?? window.fetch))) {
+				return;
+			}
+
 			const res = await userSignOut();
 			user.set(null);
 			localStorage.removeItem('token');
@@ -955,6 +963,7 @@
 
 	onMount(async () => {
 		const originalFetch = window.fetch.bind(window);
+		unwrappedFetch = originalFetch;
 		window.fetch = async (input, init) => {
 			const response = await originalFetch(input, init);
 
