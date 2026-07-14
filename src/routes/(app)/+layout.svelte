@@ -220,10 +220,10 @@
 	};
 
 	// Helper functions defined at top-level
-	// Fired on every user action (click, keydown, touch, scroll, mousemove):
-	// renew the session only at the moment of actual use, and only once the
-	// token has passed half of its lifetime. attemptAutoRefresh throttles the
-	// high-frequency events (mousemove) down to one request per interval.
+	// 사용자 조작(click, keydown, touchstart, scroll)마다 호출:
+	// 실제 사용 시점에만, 토큰 수명의 절반이 지난 경우에만 세션을 갱신한다.
+	// 마우스 포인터 이동(mousemove)은 수동적 동작이라 갱신 트리거에서 제외.
+	// attemptAutoRefresh가 고빈도 이벤트를 스로틀링한다.
 	const onUserActivity = () => {
 		if (!$user?.expires_at) {
 			return;
@@ -490,7 +490,6 @@
 			};
 		}
 
-		window.addEventListener('mousemove', onUserActivity);
 		window.addEventListener('keydown', onUserActivity);
 		window.addEventListener('click', onUserActivity);
 		window.addEventListener('touchstart', onUserActivity);
@@ -562,7 +561,6 @@
 	// onMount is async, so a cleanup function returned from it would be ignored —
 	// teardown must live in onDestroy.
 	onDestroy(() => {
-		window.removeEventListener('mousemove', onUserActivity);
 		window.removeEventListener('keydown', onUserActivity);
 		window.removeEventListener('click', onUserActivity);
 		window.removeEventListener('touchstart', onUserActivity);
