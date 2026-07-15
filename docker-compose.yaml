@@ -10,6 +10,8 @@ services:
     ports:
       - ${OPEN_WEBUI_PORT-3000}:8080
     environment:
+      # 설정은 항상 이 파일의 env가 기준 (DB config 테이블 무시, 관리자 UI 변경은 재시작 시 소멸)
+      - 'ENABLE_PERSISTENT_CONFIG=false'
       - 'JWT_EXPIRES_IN=24h'
       - 'WEBUI_SECRET_KEY='
       - 'DISABLE_ADMIN=false'
