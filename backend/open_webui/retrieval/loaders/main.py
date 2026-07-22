@@ -161,7 +161,10 @@ class TikaLoader:
         endpoint = self.url
         if not endpoint.endswith('/'):
             endpoint += '/'
-        endpoint += 'rmeta/text'
+        # tika/text 고정 (0.6.43-fix2.1 검증 상태 = 업스트림 0.10.2와 동일).
+        # rmeta/text는 응답이 구성요소별 배열로 쪼개져 HWP/HWPX 본문([1] 이후 요소)이
+        # 유실된다 — 0.6.43에서 같은 이유로 당일 롤백된 이력 있음. 전환 금지.
+        endpoint += 'tika/text'
 
         log.debug(f'Tika endpoint: {endpoint}')
         try:
@@ -172,10 +175,6 @@ class TikaLoader:
 
         if r.ok:
             raw_metadata = r.json()
-            # rmeta/text returns an array, take the first element
-            if isinstance(raw_metadata, list) and len(raw_metadata) > 0:
-                raw_metadata = raw_metadata[0]
-
             text = raw_metadata.get('X-TIKA:content', '<No text content found>').strip()
 
             if 'Content-Type' in raw_metadata:
@@ -445,10 +444,11 @@ class Loader:
                 log.debug('Falling back to TextLoader for text file (Tika configured)')
                 loader = TextLoader(file_path, encoding=self._detect_text_encoding(file_path))
             else:
+                # mime_type을 넘기지 않는다 — 브라우저가 붙인 부정확한 MIME(octet-stream 등)이
+                # Content-Type 힌트로 전달되면 Tika 파서 선택을 방해한다. 바이트 스니핑에 맡길 것.
                 loader = TikaLoader(
                     url=self.kwargs.get('TIKA_SERVER_URL'),
                     file_path=file_path,
-                    mime_type=file_content_type,
                     extract_images=self.kwargs.get('PDF_EXTRACT_IMAGES'),
                 )
         elif (

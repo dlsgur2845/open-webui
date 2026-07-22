@@ -1196,24 +1196,24 @@ asyncio.create_task(periodic_chat_deletion())
 
 ---
 
-### 8. Tika 로더 — rmeta/text 전환 + MIME 전달 + 로깅/에러 처리 강화
+### 8. Tika 로더 — 로깅/에러 처리 강화 (tika/text 유지 — rmeta 전환 금지)
 
 **목적/배경**
 - Tika 연동 실패 원인 파악용 로깅 강화(기존 예외는 `r.reason`만 포함), 연결 실패/HTTP 오류 구분, 응답 본문 포함 상세 예외.
-- **주의: 0.6.43 최종 상태와 다르다.** 0.6.43에서는 `rmeta/text` 전환이 롤백되어 `tika/text`가 최종이었지만, **0.10.2 이식에서는 `rmeta/text` + 배열 응답 처리 + `mime_type` 전달이 적용된 상태다.** 재이식 시 이 문서(0.10.2 기준)가 정본이다.
+- **커스텀은 로깅/에러 처리뿐이다. 엔드포인트는 업스트림 0.10.2 그대로 `tika/text`, MIME 전달 없음.**
+- **사고 이력 (0.10.2-fix1.1에서 교정, 2026-07-22):** 최초 이식 커밋 `23203ac6f`가 0.6.43 시절 **당일 롤백됐던** 실험 커밋 `a8841c5a5`(rmeta/text 전환 + 배열 `[0]` 선택 + `mime_type` 전달)를 재적용했다. 그 결과 **HWP/HWPX 추출이 깨졌다**: (a) `rmeta/text`는 응답을 구성요소별 배열로 쪼개는데 `[0]`(컨테이너 레코드)만 취해 본문이 유실되고, (b) 브라우저가 붙인 부정확한 MIME(octet-stream 등)이 `Content-Type` 힌트로 강제되어 Tika의 파서 자동 감지를 방해했다. Tika가 200 OK를 반환하므로 에러 로그 없이 EMPTY_CONTENT로만 나타난다. 구 문서의 경고("`a8841c5a5`를 그대로 적용하면 안 됨")를 어긴 이식 실수였고, fix1.1에서 0.6.43 최종 상태(= 업스트림 0.10.2와 동일)로 원복했다. **재발 방지: rmeta 전환·MIME 전달을 다시 시도하지 말 것.**
 
 **동작 방식**
-- 엔드포인트 `{TIKA_SERVER_URL}/rmeta/text` (PUT). rmeta는 배열을 반환하므로 첫 원소를 사용.
-- `Loader`가 파일의 `file_content_type`을 `TikaLoader(mime_type=...)`로 전달 → `Content-Type` 헤더로 Tika에 힌트 제공(HWP 등 감지 보조).
+- 엔드포인트 `{TIKA_SERVER_URL}/tika/text` (PUT, Content-Type 헤더 없음 → Tika가 바이트 스니핑으로 파서 선택). 응답은 단일 JSON 객체, `X-TIKA:content` 사용.
 - 추출 시작 `log.info`, 엔드포인트 `log.debug`, 연결 실패 별도 `log.error` 후 re-raise, HTTP 실패 시 `status_code reason - body` 포함 로깅/예외.
 
-**변경 파일 및 핵심 내용 (현재 트리 실측)**
-- `backend/open_webui/retrieval/loaders/main.py` — `TikaLoader.load()` (148~189행):
+**변경 파일 및 핵심 내용 (0.10.2-fix1.1 트리 실측)**
+- `backend/open_webui/retrieval/loaders/main.py` — `TikaLoader.load()`:
 ```python
 def load(self) -> list[Document]:
     log.info(f'Starting Tika extraction for file: {self.file_path}')
     ...
-    endpoint += 'rmeta/text'
+    endpoint += 'tika/text'   # rmeta/text 금지 — 위 사고 이력 참조 (소스에 한글 경고 주석 있음)
     log.debug(f'Tika endpoint: {endpoint}')
     try:
         r = requests.put(endpoint, data=data, headers=headers, verify=REQUESTS_VERIFY)
@@ -1222,9 +1222,6 @@ def load(self) -> list[Document]:
         raise e
     if r.ok:
         raw_metadata = r.json()
-        # rmeta/text returns an array, take the first element
-        if isinstance(raw_metadata, list) and len(raw_metadata) > 0:
-            raw_metadata = raw_metadata[0]
         text = raw_metadata.get('X-TIKA:content', '<No text content found>').strip()
         ...
     else:
@@ -1232,7 +1229,7 @@ def load(self) -> list[Document]:
         raise Exception(f'Error calling Tika: {r.status_code} {r.reason} - {r.text}')
 ```
 (`verify=REQUESTS_VERIFY`는 업스트림 0.10.2 기존 코드 — 유지할 것.)
-- 같은 파일 `Loader`의 tika 분기 (443~452행):
+- 같은 파일 `Loader`의 tika 분기 — `mime_type`을 **넘기지 않는다** (업스트림과 동일). 커스텀은 `log.debug` 한 줄과 호출부 위 한글 경고 주석뿐:
 ```python
 elif self.engine == 'tika' and self.kwargs.get('TIKA_SERVER_URL'):
     if self._is_text_file(file_ext, file_content_type):
@@ -1242,19 +1239,17 @@ elif self.engine == 'tika' and self.kwargs.get('TIKA_SERVER_URL'):
         loader = TikaLoader(
             url=self.kwargs.get('TIKA_SERVER_URL'),
             file_path=file_path,
-            mime_type=file_content_type,
             extract_images=self.kwargs.get('PDF_EXTRACT_IMAGES'),
         )
 ```
-(`_detect_text_encoding` 기반 TextLoader는 업스트림 0.10.2 코드. 커스텀은 `log.debug` 한 줄과 `mime_type=file_content_type` 한 줄.)
-- `TikaLoader.__init__`(141행)은 업스트림부터 `mime_type=None` 파라미터를 갖고 있으므로 시그니처 변경 없음.
 
 **재적용 가이드**
-1. `TikaLoader.load()`에 로깅/try-except/rmeta 배열 처리/상세 예외를 얹고, 호출부에 `mime_type=file_content_type` 한 줄 추가. 라인 번호가 아니라 "`requests.put` 지점"과 "`r.ok` 분기" 문맥으로 위치를 찾을 것.
+1. `TikaLoader.load()`에 로깅/try-except/상세 예외만 얹는다. 엔드포인트(`tika/text`)와 호출부 시그니처는 업스트림 그대로 두고, rmeta/MIME 관련 변경이 업스트림에 새로 생겼는지 확인 후 **HWP 업로드 실테스트**로 검증할 것.
 2. Dockerfile의 파싱 의존성(§11의 pyhwp/msoffcrypto-tool 등)과 세트 — Tika 서버 측 HWP 처리 파이프라인 보조용.
 3. DB/설정 변경 없음. `TIKA_SERVER_URL` 등 기존 설정 그대로.
+4. 검증 방법: HWP/HWPX 파일 업로드 → 지식베이스 또는 채팅 첨부에서 내용 질의가 되는지 확인. 실패 시 증상은 "에러 로그 없이(INFO만) 추출 실패" — Tika는 200을 주므로 서버 로그만 봐서는 안 보인다.
 
-**관련 커밋**: `23203ac6f`
+**관련 커밋**: `23203ac6f`(최초 이식, rmeta 사고 포함) → 0.10.2-fix1.1에서 교정
 
 ---
 
