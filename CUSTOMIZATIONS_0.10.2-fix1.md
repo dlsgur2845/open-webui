@@ -48,7 +48,13 @@ e81eedfdd docs: 서버 시계 NTP 동기화 반영, 시간 검증은 서버에�
 
 1. **라인 번호가 아니라 코드 문맥 기준으로 이식할 것.** 본 문서의 라인 번호는 0.10.2-fix1 시점 실측값이며, 업스트림 리팩터링으로 위치가 달라질 수 있다.
 2. **각 파트 서두의 "업스트림에 이미 흡수된 것들" 목록을 먼저 확인할 것.** 0.6.43 시절 커스텀 중 일부(전역 401 인터셉터, Analytics 대시보드, 파일 예외 처리 등)는 업스트림에 편입되어 커스텀이 소멸했다. 차기 버전에서도 같은 일이 일어날 수 있으니, 이식 전 대상 버전 소스에서 기존재 여부를 grep으로 확인하고 **중복 적용을 금지**한다.
-3. **설정 우선순위 주의 — 이 배포는 `ENABLE_PERSISTENT_CONFIG=false`로 운영한다 (2026-07-15 확정).** 0.10.2의 기본 구조는 부팅 시 `Config.seed_defaults(DEFAULT_CONFIG)`가 키를 DB `config` 테이블에 심고 이후 `Config.get()`이 항상 DB 값을 읽는 방식이라, env 변수는 키가 DB에 없을 때의 초기값일 뿐이다(실사례: `ENABLE_USER_PERSONAL_INFO=false`가 무시됨). 이 함정을 없애기 위해 compose에 `ENABLE_PERSISTENT_CONFIG=false`를 고정 — **env가 부팅마다 그대로 반영되고 DB는 무시된다** (`models/config.py`의 `persistent_enabled_for()` 경로, 실동작 검증 완료). 트레이드오프: 관리자 UI 설정 변경은 재시작 시 소멸. 차기 버전 이식 시에도 이 env가 유지되는지, `Config.configure(enable_persistent=...)` 구조가 남아있는지 확인할 것.
+3. **설정값은 DB(`config` 테이블)가 env보다 우선한다 — `ENABLE_PERSISTENT_CONFIG`는 기본값 `true`로 운영한다 (2026-07-22 재확정).** 부팅 시 `Config.seed_defaults(DEFAULT_CONFIG)`가 **DB에 없는 키만** 심고, 이후 `Config.get()`/`get_many()`는 DB 행을 우선 읽는다. 즉 env는 **키가 DB에 없을 때의 초기값**일 뿐이라, 기존 설치본에서 env만 바꾸면 반영되지 않는다 — 실사례: `ENABLE_WEBPAGE_ATTACHMENT=false`·`ENABLE_USER_PERSONAL_INFO=false`가 무시됨(0.6.43-fix2.1 DB 이관본에 두 행이 `true`로 이미 존재). 배포 후 값이 안 먹으면 DB를 직접 갱신할 것 (`value`는 JSON 컬럼이므로 JSON 불리언이어야 한다):
+   ```sql
+   SELECT key, value FROM config WHERE key IN ('ui.enable_webpage_attachment', 'ui.enable_user_personal_info');
+   UPDATE config SET value = 'false'::json, updated_at = EXTRACT(EPOCH FROM NOW())::bigint
+   WHERE key IN ('ui.enable_webpage_attachment', 'ui.enable_user_personal_info');
+   ```
+   경위: 2026-07-15에 이 함정을 없애려 `ENABLE_PERSISTENT_CONFIG=false`를 도입했다가, 관리자 UI 설정이 재시작 시 소멸하는 트레이드오프가 수용 불가로 판정되어 **기본값(true)으로 원복**했다. 커스텀 토글 3종은 쓰기 API가 없으므로(`routers/`에 쓰기 경로 0건) 위 UPDATE는 UI로 되돌아가지 않는 영구 설정이다. 차기 버전 이식 시 `Config.seed_defaults()`가 여전히 "없는 키만 삽입"인지 확인할 것.
 4. **Alembic**: 커스텀 마이그레이션 `f1a2b3c4d5e6_add_token_jti_to_auth.py`의 `down_revision`을 **대상 버전의 실제 최신 head로 갱신**해야 단일 head가 유지된다. 대상 head 확인: `ls backend/open_webui/migrations/versions/` 후 `alembic heads` 또는 파트 1의 검증 스크립트 사용. 구 포크 DB의 stamp 자동 교정 로직(`migrations/env.py`)은 0.6.43 DB를 직접 받는 경우에만 필요하다.
 5. **sessionStorage 치환은 스크립트로 일괄 처리** 후 `grep -rn "localStorage.token" src/`로 잔존 0건을 검증할 것 (파트 3, 섹션 2의 스크립트·주의 파일 목록 참조). 로그아웃 경로의 `localStorage.removeItem('token')` 병기는 치환하면 안 된다.
 6. **시간 검증은 서버에서만 한다.** 프론트엔드가 브라우저 시계로 만료를 직접 판정하는 코드를 새로 들이지 말 것. 표시·타이머는 `server_timestamp` 기반 clockSkew 보정, 최종 판정(로그아웃)은 서버 401 확인. (파트 1, 섹션 10~12·14)
@@ -1090,7 +1096,7 @@ PASSWORD_BLACKLIST = [
 
 **동작 방식**
 - env(기본 전부 `True`) → `DEFAULT_CONFIG`의 `ui.enable_image_capture` / `ui.enable_webpage_attachment` / `ui.enable_user_personal_info` 키 → `/api/config`의 **인증 사용자 전용** features로 노출 → 프런트 `$config.features.*` 조건부 렌더링(프런트 파트 문서).
-- 0.10.2의 config 시스템 특성상 DB `config`에 해당 키가 저장돼 있으면 DB 값이 env보다 우선한다(0.6.43 PersistentConfig와 동일한 주의점).
+- 0.10.2의 config 시스템 특성상 DB `config`에 해당 키가 저장돼 있으면 DB 값이 env보다 우선한다(0.6.43 PersistentConfig와 동일한 주의점). **실운영 DB(0.6.43-fix2.1 이관본)에는 세 행이 이미 존재하므로 env 변경은 무시된다 — 값 변경은 `UPDATE config SET value = 'false'::json WHERE key = '<키>'`로 한다.** 서두 "이식 시 반드시 지킬 것" 3번 항목 참조.
 
 **변경 파일 및 핵심 내용 (현재 트리 실측)**
 - `backend/open_webui/config.py` 1998~2002행 (`ENABLE_NOTES` 직후):

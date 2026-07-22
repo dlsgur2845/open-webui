@@ -25,8 +25,18 @@
 
 ## 설정 관리 방침
 
-- **`ENABLE_PERSISTENT_CONFIG=false` 고정** (docker-compose.yaml): 모든 설정은 compose의 env가 부팅마다 그대로 반영되고 DB `config` 테이블은 무시된다. 설정 변경 = compose 수정 + 재기동 (git으로 버전관리됨).
-- 트레이드오프: 관리자 UI에서 바꾼 설정은 메모리에만 반영되고 재시작 시 사라진다. UI로 영구 설정을 바꾸는 운영은 하지 않는다.
+- **`ENABLE_PERSISTENT_CONFIG`는 기본값(`true`)을 그대로 쓴다.** 관리자 UI에서 바꾼 설정이 재시작 후에도 유지되어야 하기 때문. compose에 이 env를 넣지 말 것.
+- 그 결과 **DB `config` 테이블이 env보다 우선한다.** `models/config.py`의 `persistent_enabled_for()`가 `True`를 반환 → `Config.get()`이 DB 행을 읽고, 행이 없을 때만 `DEFAULT_CONFIG`(=env)로 폴백한다. 부팅 시 `seed_defaults()`는 **DB에 없는 키만 삽입**하므로 기존 행은 절대 덮어쓰지 않는다.
+- **따라서 `DEFAULT_CONFIG`에 등록된 키는 env를 고쳐도 기존 설치본에 반영되지 않는다.** (실사례: `ENABLE_WEBPAGE_ATTACHMENT=false` / `ENABLE_USER_PERSONAL_INFO=false` 무시 — 0.6.43-fix2.1 DB 이관본에 해당 행이 `true`로 이미 존재) env는 신규 설치의 초기값일 뿐이다.
+- 값이 안 먹으면 **DB를 확인하고 직접 UPDATE**한다. `value`는 JSON 컬럼이므로 문자열 `'false'`가 아니라 JSON 불리언이어야 한다:
+  ```sql
+  SELECT key, value FROM config WHERE key = 'ui.enable_webpage_attachment';
+  UPDATE config
+  SET value = 'false'::json, updated_at = EXTRACT(EPOCH FROM NOW())::bigint
+  WHERE key IN ('ui.enable_webpage_attachment', 'ui.enable_user_personal_info');
+  ```
+  `Config.get_many()`는 캐시 없이 매 요청 DB를 조회하므로 재기동 없이 즉시 반영된다.
+- 커스텀 기능 토글 3종(`ui.enable_image_capture` / `ui.enable_webpage_attachment` / `ui.enable_user_personal_info`)은 **쓰기 API가 없다** (`routers/` 전체에 쓰기 경로 0건, `main.py`의 읽기 전용 노출뿐). 관리자 UI로 되돌아갈 일이 없으므로 위 UPDATE는 사실상 영구 설정이다.
 
 ## 서버 환경 (배포 대상)
 

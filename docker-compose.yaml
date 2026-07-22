@@ -10,8 +10,10 @@ services:
     ports:
       - ${OPEN_WEBUI_PORT-3000}:8080
     environment:
-      # 설정은 항상 이 파일의 env가 기준 (DB config 테이블 무시, 관리자 UI 변경은 재시작 시 소멸)
-      - 'ENABLE_PERSISTENT_CONFIG=false'
+      # ENABLE_PERSISTENT_CONFIG은 기본값(true)을 사용한다 — DB config 테이블이 env보다 우선.
+      # 아래 env 중 DEFAULT_CONFIG 키로 들어가는 항목(ENABLE_IMAGE_CAPTURE /
+      # ENABLE_WEBPAGE_ATTACHMENT / ENABLE_USER_PERSONAL_INFO)은 신규 설치에서만 적용된다.
+      # 기존 설치본에서 바꾸려면 config 테이블을 직접 UPDATE할 것 (CLAUDE.md '설정 관리 방침' 참조).
       - 'JWT_EXPIRES_IN=24h'
       - 'WEBUI_SECRET_KEY='
       - 'DISABLE_ADMIN=false'
