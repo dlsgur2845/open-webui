@@ -30,7 +30,14 @@ d69a30d7e ci: GHCR 이미지 경로를 ax/open-webui로 변경                  
 e335d4095 refac: 마우스 포인터 이동을 세션 갱신 트리거에서 제외
 ce04f3f16 docs: CLAUDE.md 추가 — 빌드/배포/테스트 규칙 정리 (.gitignore 예외 처리)
 e81eedfdd docs: 서버 시계 NTP 동기화 반영, 시간 검증은 서버에서만 수행 원칙 명시
+7c35973e8 config: ENABLE_PERSISTENT_CONFIG=false로 전환                (이후 b9ad4d7a8에서 원복)
+b9ad4d7a8 config: ENABLE_PERSISTENT_CONFIG 기본값(true)으로 원복 — 설정은 DB config 테이블이 기준
+e4c59458f fix: Tika 호출을 0.6.43 검증 상태로 원복 — HWP/HWPX 추출 실패 해결   (0.10.2-fix1.1)
+7635f0a3a feat: 인사·조직 마스터 데이터 일일 동기화 추가 (§12)               (0.10.2-fix1.2)
 ```
+
+> 브랜치는 `0.10.2-fix1` → `0.10.2-fix1.1`(Tika 원복) → `0.10.2-fix1.2`(기능 추가)로 이어진다.
+> 본 문서는 계속 `0.10.2-fix1` 계열 전체의 기준 문서다.
 
 ---
 
