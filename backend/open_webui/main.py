@@ -371,6 +371,11 @@ async def lifespan(app: FastAPI):
 
     asyncio.create_task(scheduler_worker_loop(app))
 
+    # 인사·조직 마스터 데이터 일일 동기화 (HR_SYNC_* 환경변수, 기본 비활성)
+    from open_webui.utils.hr_sync import hr_sync_loop
+
+    asyncio.create_task(hr_sync_loop())
+
     if await Config.get('models.base_models_cache'):
         try:
             await get_all_models(

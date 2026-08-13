@@ -39,7 +39,7 @@ e81eedfdd docs: 서버 시계 NTP 동기화 반영, 시간 검증은 서버에�
 | 파트 | 주제 | 핵심 내용 |
 |---|---|---|
 | 1 | 인증/세션/토큰 보안 | JWT 24h, JTI 단일 세션, /auths/refresh, sessionStorage, 세션 타임아웃 UI, 이벤트 구동 자동 갱신, 시계차 보정(2026-07-14 수정 3건), alembic |
-| 2 | 백엔드 보안/기능/파싱/DB | 오류 마스킹, DISABLE_ADMIN, 한글화, 비밀번호 정책, 기능 토글 3종, 대화 자동 삭제, Tika, start.sh, stamp 교정, Dockerfile |
+| 2 | 백엔드 보안/기능/파싱/DB | 오류 마스킹, DISABLE_ADMIN, 한글화, 비밀번호 정책, 기능 토글 3종, 대화 자동 삭제, Tika, 인사·조직 일일 동기화, start.sh, stamp 교정, Dockerfile |
 | 3 | 프런트 전반/정책/운영·배포 | 동의 모달·보존 정책, sessionStorage 전수, 토글 UI, 운영 스크립트 3종, compose/CI/런북 |
 
 ---
@@ -67,7 +67,7 @@ e81eedfdd docs: 서버 시계 NTP 동기화 반영, 시간 검증은 서버에�
 1. **준비**: `git fetch upstream --tags`로 대상 버전 태그 확보. **리모트에 같은 이름 브랜치가 있는지 먼저 확인** 후 `git checkout -b <X.Y.Z>-fix1 v<X.Y.Z>` 생성. `package.json` version을 브랜치명과 동일하게.
 2. **소멸 커스텀 선별**: 각 파트 서두의 "업스트림 흡수" 목록 + 본 문서의 각 섹션 접점 파일을 대상 버전에서 grep — 이미 반영된 항목은 이식 생략.
 3. **기계적 치환 먼저**: sessionStorage 전환(파트 3, 섹션 2 스크립트) → grep 검증.
-4. **백엔드 이식**: 파트 2의 권장 순서(섹션 12) → 파트 1의 인증 체인(JTI → refresh → server_timestamp → alembic down_revision 갱신).
+4. **백엔드 이식**: 파트 2의 권장 순서(섹션 13) → 파트 1의 인증 체인(JTI → refresh → server_timestamp → alembic down_revision 갱신).
 5. **프런트 이식**: 파트 1의 세션 UI·자동 갱신·시계차 보정 → 파트 3의 동의 모달·토글 UI.
 6. **빌드/검증**: CLAUDE.md 규칙대로 빌드 → 컨테이너 `JWT_EXPIRES_IN=3m` 기동 → API 테스트(발급 직후 200 / 만료 후 401) + **Playwright 시계 시프트(+180s) 테스트** (로그인 유지 + 만료 시 로그아웃).
 7. **데이터 이관 런북 작성**: `MIGRATION_RUNBOOK_to_0.10.2.md`를 템플릿으로 대상 버전용 작성 (alembic head, config 테이블, 벡터 컬렉션 네이밍 대조).
@@ -1371,7 +1371,70 @@ nltk 데이터는 빌드 시점 `$HOME/nltk_data`(= `/home/appusr/nltk_data`)에
 
 ---
 
-### 12. 경계 항목·이식되지 않은 항목·변경 없음 확인
+### 12. [신규 2026-08-13] 인사·조직 마스터 데이터 일일 동기화 (`HR_SYNC_*`)
+
+**목적/배경**
+- 사내 인사 REST API에서 **직원·부서·공휴일** 스냅샷을 매일 **같은 시각에 한 번** 받아 파일로 저장하고, 직원+부서를 합쳐 **조직도(`org.json`)를 파생 생성**한다. 소비자는 OpenWebUI Functions 필터와 외부 조회 도구이며, 이들은 파일을 **읽기만** 한다.
+- 종전에는 같은 수집 로직이 Functions 필터 안에 있어 **그날 첫 채팅 요청이 트리거**했다. 첫 사용자가 수집 지연을 떠안고, 수집 시각이 매일 달라지며, 필터를 끄면 수집도 멈추는 구조였다. 이를 **정시 배치**로 분리한 것이 본 기능이다.
+
+**접점 파일**
+| 파일 | 변경 |
+|---|---|
+| `backend/open_webui/utils/hr_sync.py` | **신규**(562행). 수집·저장·조직도 생성·스케줄러 전부 |
+| `backend/open_webui/main.py` | `lifespan` 내 2줄 — `scheduler_worker_loop` 등록 직후 `asyncio.create_task(hr_sync_loop())` |
+
+```python
+    # 인사·조직 마스터 데이터 일일 동기화 (HR_SYNC_* 환경변수, 기본 비활성)
+    from open_webui.utils.hr_sync import hr_sync_loop
+
+    asyncio.create_task(hr_sync_loop())
+```
+
+**설정 — 전부 환경변수 (DB `config` 테이블을 쓰지 않는다)**
+- 이유 두 가지: ① 공통 주의사항 3의 함정(=DB 행이 env보다 우선해 env 수정이 먹지 않음)을 아예 피한다. ② **이 저장소는 공개**라 API 주소·헤더 이름/값·기관 코드 같은 사내 식별자를 코드·문서·compose 어디에도 남기지 않고 배포 서버 compose 에만 둔다.
+- 값이 바뀌면 **재기동 필요**(모듈 로드 시점 1회 읽기).
+
+| 환경변수 | 기본값 | 설명 |
+|---|---|---|
+| `HR_SYNC_ENABLED` | `false` | 꺼져 있으면 백그라운드 태스크 자체가 뜨지 않는다 |
+| `HR_SYNC_TIME` | `08:00` | 매일 실행 시각 `HH:MM`. 기본값은 롤오버 시각과 같게 두어, 종전 "롤오버 후 첫 요청이 수집"과 같은 타이밍을 유지한다 |
+| `HR_SYNC_TZ` | `Asia/Seoul` | 실행 시각·날짜 라벨 기준 타임존 |
+| `HR_SYNC_DIR` | `<DATA_DIR>/hr` | 스냅샷 저장 디렉터리(조회 도구와 공유) |
+| `HR_SYNC_EMP_API_URL` / `_DEPT_API_URL` / `_HOLIDAY_API_URL` | — | 비운 항목은 미수집. 셋 다 비면 루프 미기동 |
+| `HR_SYNC_API_HEADER_NAME` / `_VALUE` | — | 시스템 식별용 추가 요청 헤더(비우면 미전송) |
+| `HR_SYNC_API_TIMEOUT` | `10` | 호출 타임아웃(초) |
+| `HR_SYNC_ROLLOVER_HOUR` | `8` | 날짜 라벨 기준 시각. 이 시각 전이면 전날로 본다 |
+| `HR_SYNC_RETENTION_DAYS` | `7` | 일자 보관본 유지 일수 |
+| `HR_SYNC_HOLIDAY_YEARS_BACK` / `_AHEAD` | `1` / `1` | 공휴일 수집 범위(작년 1/1 ~ 내년 12/31) |
+| `HR_SYNC_ROOT_DEPT_CODE` / `_NAME` | — | 조직도 최상위 노드. 비우면 삽입하지 않는다 |
+| `HR_SYNC_RUN_ON_START` | `true` | 기동 시 오늘자 스냅샷이 없으면 즉시 1회 보충 |
+
+**동작**
+- **스케줄 판정**: 1분마다 현재 시각을 다시 읽어 `달력 날짜가 바뀌었고 && 현재 시각 ≥ HR_SYNC_TIME`이면 실행. 긴 `sleep` 대신 짧은 폴링이라 컨테이너 일시정지·시계 조정으로 시간이 튀어도 예정 시각을 지나치지 않는다. 실행 후에는 그날 다시 돌지 않는다(실패해도 재시도하지 않고 다음 날).
+- **기동 시**: 이미 예정 시각을 지난 상태로 떠도 그날 몫을 다시 돌리지 않는다(재기동마다 재수집 방지). 대신 `RUN_ON_START`가 오늘자 파일 부재를 확인해 보충한다.
+- **산출물**: `emp.json` / `dept.json` / `holiday.json` / `org.json` + 일자 보관본 `<이름>.<YYYY-MM-DD>.json`(기본 7일, 초과분 삭제).
+- **원자적 저장**: 임시파일 → `os.replace`. 읽는 쪽이 쓰다 만 JSON을 보지 않는다.
+- **`useYn` 규칙**: 명시적 `N`만 제외(필드 없음/빈 값은 유지) — API가 필드를 빼는 변경에도 전원 누락으로 번지지 않게. 저장 시점과 읽는 시점 양쪽에서 적용.
+- **실패 격리**: 항목별로 독립 처리한다. 한 API가 죽어도 나머지는 갱신되고, 실패한 항목은 **직전 파일이 그대로 남아** 읽는 쪽이 보관본으로 계속 동작한다.
+- **빈 응답 가드**: 레코드 0건이면 저장하지 않고 실패로 처리한다(기존 파일 보존). 판정은 **루트 노드 삽입 전**에 한다 — 삽입분 때문에 빈 응답이 1건으로 보이지 않도록.
+- **공휴일**: 전 범위(작년~내년)를 한 번에 요청하고, 응답이 비면 **연 단위로 나눠 받아 합친다**(범위 조회를 지원하지 않는 API 대비).
+- **조직도**: 저장된 `emp`+`dept` 파일 기준으로 매번 다시 만든다. 부모는 `dept2Code`→`dept3Code` 중 자기 코드와 처음으로 다른 코드, 상위가 없는 노드는 최상위 노드 아래로 모아 루트를 하나로 유지한다. 부서 목록에 없는 부서코드의 직원은 **`미분류(<코드>)` 노드로 보존**(누락 금지). 조직은 `deptOrder`, 인원은 `positionOrder` 오름차순 정렬 후 **정렬용 값은 출력에서 제외**(배열 순서로 대신). 인원 레코드에 **사번·이메일은 싣지 않는다**.
+
+**주의사항**
+1. **`HR_SYNC_TIME`은 `HR_SYNC_ROLLOVER_HOUR` 이후여야 한다.** 그 전에 저장하면 전날 라벨이 붙어, 같은 롤오버 규칙으로 "오늘자가 있는가"를 판정하는 소비자가 계속 낡았다고 본다. 어긋나면 기동 시 경고 로그를 남긴다.
+2. **`UVICORN_WORKERS=1` 전제**(기본값). 여러 워커로 띄우면 워커 수만큼 같은 시각에 호출이 나간다 — 저장은 원자적이라 파일이 깨지진 않지만 API 호출이 중복된다.
+3. **파일명·JSON 형태·정렬 규칙은 소비자와의 계약**이다. 바꾸면 조회 도구가 함께 깨진다.
+4. 디렉터리는 컨테이너 사용자(uid 1000)가 쓸 수 있어야 한다. 기본값(`<DATA_DIR>/hr`)은 기존 데이터 볼륨 안이라 문제없고, 다른 컨테이너와 공유하려면 별도 볼륨을 양쪽에 마운트한다.
+5. 기존 Functions 필터에도 같은 수집 로직이 남아 있다면 **같은 디렉터리를 가리키는 한 충돌하지 않는다** — 필터는 "오늘자 파일 있음"을 확인하고 건너뛰므로 사실상 폴백으로만 동작한다.
+
+**재이식 방법 (차기 버전)**
+1. `backend/open_webui/utils/hr_sync.py`를 그대로 복사한다(업스트림 의존은 `open_webui.env`의 `DATA_DIR`·`REQUESTS_VERIFY` 두 개뿐).
+2. `main.py`의 `lifespan`에서 `scheduler_worker_loop` 등록 직후에 위 2줄을 추가한다.
+3. 검증: 가짜 인사 API(로컬 HTTP 서버)를 띄우고 `sync_snapshots(day)` 호출 → 4종 파일·정렬·`useYn` 필터·보관 7일·실패 격리 확인. 스케줄 판정은 모듈의 `datetime`을 가짜 시계로 대체해 "예정 시각 통과 시 1회, 같은 날 재실행 없음, 다음 날 재실행"을 확인한다. (2026-08-13 기준 linux/amd64 컨테이너·uid 1000에서 34개 항목 통과)
+
+---
+
+### 13. 경계 항목·이식되지 않은 항목·변경 없음 확인
 
 **같은 파일에 있으나 다른 파트 소관 (충돌 주의)**
 - `config.py` 2402행 `JWT_EXPIRES_IN = os.getenv('JWT_EXPIRES_IN', '24h')`(업스트림 '4w'), `main.py` 1890행 `'auth.jwt_expiry'` 키 추가 및 1963~1967행 features `'jwt_expires_in'` 노출 — **인증/세션 파트 문서 담당**.
@@ -1383,7 +1446,7 @@ nltk 데이터는 빌드 시점 `$HOME/nltk_data`(= `/home/appusr/nltk_data`)에
 - `auths.py` `update_password`의 검증 대상 버그(password→new_password) — 업스트림에서 이미 수정(§5).
 - `add_user`의 user_data 오전달(관리자 본인 정보 대조) 버그 — 이번 이식에서 `form_data` 기준으로 수정(§5).
 - `enable_admin_export` 공통 블록 중복 노출 — **이식되지 않음**(§3). 필요성 재확인 후 필요 시 별도 적용.
-- Tika `tika/text` 유지(0.6.43 최종) — 0.10.2에서는 반대로 `rmeta/text`가 채택됨(§8).
+- ~~Tika `tika/text` 유지(0.6.43 최종) — 0.10.2에서는 반대로 `rmeta/text`가 채택됨~~ → **2026-07-23 정정**: `rmeta/text` 채택은 이식 실수였고 HWP/HWPX 본문 유실을 일으켜 `tika/text`로 원복했다(§8). 차기 이식에서도 `tika/text`를 유지할 것.
 - Dockerfile `USE_CUDA=true` 기본화 — 폐기(§11 (f)).
 
 **변경 없음 확인**
@@ -1400,9 +1463,10 @@ nltk 데이터는 빌드 시점 `$HOME/nltk_data`(= `/home/appusr/nltk_data`)에
 7. `config.py`: 토글 3종 + CHAT_DELETE_* (env 읽기 + DEFAULT_CONFIG 키)
 8. `main.py`: disable_admin(공통 블록)·토글 features·config 키 리스트·periodic_chat_deletion
 9. `models/chats.py`: `delete_chats_older_than` (연관 테이블 목록 최신화)
-10. `retrieval/loaders/main.py`: Tika rmeta/로깅/mime_type
-11. `Dockerfile` 4지점 + `backend/start.sh` alembic 블록
-12. `migrations/env.py` stamp 교정 — 구 포크 DB 전환이 남아 있는 경우에만
+10. `retrieval/loaders/main.py`: Tika 로깅/에러 처리 (**`tika/text` 유지 — `rmeta/text` 전환 금지**, §8)
+11. `utils/hr_sync.py` 신규 복사 + `main.py` lifespan 2줄 (§12)
+12. `Dockerfile` 4지점 + `backend/start.sh` alembic 블록
+13. `migrations/env.py` stamp 교정 — 구 포크 DB 전환이 남아 있는 경우에만
 
 ---
 

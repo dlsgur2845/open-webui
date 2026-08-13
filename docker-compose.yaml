@@ -3,10 +3,13 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: ax/open-webui:0.10.2-fix1.1-AppleSilicon
+    image: ax/open-webui:0.10.2-fix1.2-AppleSilicon
     container_name: open-webui
     volumes:
       - open-webui:/app/backend/data
+      # 인사 스냅샷을 조회 도구(별도 컨테이너)와 공유하려면 아래를 열고 HR_SYNC_DIR 을 맞춘다.
+      # 두 컨테이너 모두 uid 1000 으로 도는 전제(쓰기: 이쪽, 읽기: 조회 도구).
+      # - hr-data:/app/hr
     ports:
       - ${OPEN_WEBUI_PORT-3000}:8080
     environment:
@@ -24,9 +27,24 @@ services:
       - 'ENABLE_IMAGE_CAPTURE=true'
       - 'ENABLE_WEBPAGE_ATTACHMENT=false'
       - 'ENABLE_USER_PERSONAL_INFO=false'
+      # 인사·조직 마스터 데이터 일일 동기화 (기본 비활성).
+      # 이 저장소는 공개이므로 실제 API 주소·헤더 이름/값·기관 코드는 여기에 적지 않는다 —
+      # 배포 서버의 compose 에만 넣을 것. 설정 항목은 backend/open_webui/utils/hr_sync.py 참조.
+      - 'HR_SYNC_ENABLED=false'
+      # - 'HR_SYNC_TIME=08:00'        # 매일 실행 시각(HR_SYNC_TZ 기준, 기본 Asia/Seoul)
+      # - 'HR_SYNC_DIR=/app/hr'       # 스냅샷 저장 위치(조회 도구와 공유할 볼륨)
+      # - 'HR_SYNC_EMP_API_URL='      # 직원
+      # - 'HR_SYNC_DEPT_API_URL='     # 부서
+      # - 'HR_SYNC_HOLIDAY_API_URL='  # 공휴일
+      # - 'HR_SYNC_API_HEADER_NAME='  # 시스템 식별 헤더 이름
+      # - 'HR_SYNC_API_HEADER_VALUE=' # 위 헤더 값
+      # - 'HR_SYNC_ROOT_DEPT_CODE='   # 조직도 최상위 노드 코드
+      # - 'HR_SYNC_ROOT_DEPT_NAME='   # 조직도 최상위 노드 이름
     extra_hosts:
       - host.docker.internal:host-gateway
     restart: unless-stopped
 
 volumes:
   open-webui: {}
+  # hr-data:
+  #   external: true   # 조회 도구 compose 와 같은 볼륨을 쓰려면 external 로 선언
